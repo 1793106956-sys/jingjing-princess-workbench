@@ -1025,8 +1025,98 @@ function loadDailyQuote() {
 function loadDailyNews() {
   var el = document.getElementById('daily-news');
   if (!el) return;
-  el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">📰 离线模式 · 每日要闻需要联网获取</div>' +
-    '<div style="margin-top:8px;font-size:12px;color:var(--text-muted);">今日日期：' + today() + '</div>';
+  el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">📰 正在获取新闻...</div>';
+
+  // 检查缓存（1小时内的缓存直接用）
+  var cacheKey = 'jj_newsCache';
+  var cached = LS.get(cacheKey, null);
+  if (cached && (Date.now() - cached.time < 3600000)) {
+    renderNewsList(el, cached.data);
+    return;
+  }
+
+  // 尝试多个新闻源
+  tryFetchNews([
+    // 源1: 韩小韩API（60秒更新）
+    { url: 'https://api.vvhan.com/api/hotlist', type: 'json', parse: function(d) {
+      if (!d || !d.data) return null;
+      // 取多个平台的热搜合并
+      var all = [];
+      if (d.data.wbHot) d.data.wbHot.slice(0, 3).forEach(function(i) { all.push({ title: i.title || i.name, source: '微博' }); });
+      if (d.data.douyinHot) d.data.douyinHot.slice(0, 2).forEach(function(i) { all.push({ title: i.title || i.name, source: '抖音' }); });
+      if (d.data.baiduHot) d.data.baiduHot.slice(0, 2).forEach(function(i) { all.push({ title: i.title || i.name, source: '百度' }); });
+      if (d.data.zhihuHot) d.data.zhihuHot.slice(0, 2).forEach(function(i) { all.push({ title: i.title || i.name, source: '知乎' }); });
+      return all.length ? all : null;
+    }},
+    // 源2: 十年API微博热搜
+    { url: 'https://tenapi.cn/v2/weibohot?format=json', type: 'json', parse: function(d) {
+      if (!d || !d.data) return null;
+      return d.data.slice(0, 8).map(function(i) { return { title: i.name || i.title, source: '微博' }; });
+    }},
+    // 源3: 60度热搜
+    { url: 'https://60s.viki.moe/?v2=1&encoding=json', type: 'json', parse: function(d) {
+      if (!d || !d.data) return null;
+      var news = d.data;
+      if (Array.isArray(news)) {
+        return news.slice(0, 8).map(function(n) { return typeof n === 'string' ? { title: n, source: '60秒' } : { title: n.title || n.name, source: '60秒' }; });
+      }
+      return null;
+    }},
+  ], 0, el);
+}
+
+function tryFetchNews(sources, idx, el) {
+  if (idx >= sources.length) {
+    // 所有源都失败，用本地兜底
+    var cached = LS.get('jj_newsCache', null);
+    if (cached) {
+      el.innerHTML = '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">📡 离线模式 · 缓存数据</div>';
+      renderNewsList(el, cached.data);
+    } else {
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">📡 当前离线，暂无新闻<br><span style="font-size:11px;">联网后会自动获取今日要闻</span></div>';
+    }
+    return;
+  }
+
+  var src = sources[idx];
+  var timeout = setTimeout(function() {
+    tryFetchNews(sources, idx + 1, el);
+  }, 5000); // 5秒超时
+
+  fetch(src.url, { method: 'GET', timeout: 5000 })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      clearTimeout(timeout);
+      var parsed = src.parse(d);
+      if (parsed && parsed.length) {
+        LS.set('jj_newsCache', { data: parsed, time: Date.now() });
+        renderNewsList(el, parsed);
+      } else {
+        tryFetchNews(sources, idx + 1, el);
+      }
+    })
+    .catch(function(e) {
+      clearTimeout(timeout);
+      tryFetchNews(sources, idx + 1, el);
+    });
+}
+
+function renderNewsList(el, news) {
+  if (!news || !news.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">暂无新闻数据</div>';
+    return;
+  }
+  var html = '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">更新于 ' + fmtTime(new Date()) + ' · 点击查看原文</div>';
+  html += news.slice(0, 8).map(function(n, i) {
+    var source = n.source || '热点';
+    var sourceColor = source === '微博' ? '#E06060' : source === '抖音' ? '#333' : source === '百度' ? '#3060C0' : source === '知乎' ? '#0084FF' : '#888';
+    return '<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.04);font-size:13px;">' +
+      '<span style="color:var(--text-muted);min-width:18px;">' + (i + 1) + '.</span>' +
+      '<span style="flex:1;color:var(--text);line-height:1.5;">' + esc(n.title) + '</span>' +
+      '<span style="font-size:10px;color:' + sourceColor + ';align-self:center;flex-shrink:0;">' + source + '</span>' +
+    '</div>';
+  }).join('');
+  el.innerHTML = html;
 }
 
 // ==================== Water Module ====================
