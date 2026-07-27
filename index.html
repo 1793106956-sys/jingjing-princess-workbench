@@ -188,15 +188,8 @@ body {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid rgba(255,182,217,0.2);
+  margin-left: 56px;
 }
-
-#header-title {
-  font-size: var(--font-title);
-  font-weight: 700;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 #header-settings {
@@ -218,64 +211,145 @@ body {
   transform: scale(0.9);
 }
 
-#main {
-  padding: 16px;
-  min-height: calc(100vh - 130px);
-}
-
-/* ==================== Bottom Nav ==================== */
-#bottom-nav {
+/* ==================== Sidebar Nav ==================== */
+#sidebar-nav {
   position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 480px;
-  background: rgba(255,255,255,0.95);
+  top: 0;
+  left: 0;
+  width: 56px;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(255,255,255,0.97);
   backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255,182,217,0.2);
+  border-right: 1px solid rgba(255,182,217,0.2);
   display: flex;
-  z-index: 100;
-  padding: 4px 0 env(safe-area-inset-bottom, 4px);
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0 env(safe-area-inset-bottom, 16px);
+  z-index: 200;
+  overflow-y: auto;
+  gap: 2px;
 }
 
 .nav-item {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
   padding: 8px 4px;
+  min-width: 48px;
   min-height: 48px;
+  width: 48px;
   cursor: pointer;
   transition: all 0.15s;
   border: none;
   background: none;
+  border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .nav-item:active {
   transform: scale(0.9);
+  background: var(--pink-light);
+}
+
+.nav-item.active {
+  background: var(--pink-light);
 }
 
 .nav-icon {
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
 }
 
 .nav-label {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-muted);
   font-weight: 500;
-}
-
-.nav-item.active .nav-icon {
-  transform: scale(1.1);
+  white-space: nowrap;
 }
 
 .nav-item.active .nav-label {
   color: var(--pink-deep);
   font-weight: 700;
+}
+
+/* 更多按钮样式 */
+.nav-more {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,182,217,0.15);
+}
+
+#more-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  background: var(--card-bg);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+  z-index: 300;
+  padding: 16px;
+  display: none;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+#more-sheet.show { display: block; }
+
+.more-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 8px;
+  border: none;
+  background: none;
+  width: 100%;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: var(--font-body);
+  color: var(--text);
+  min-height: 44px;
+}
+
+.more-item:active { background: var(--pink-light); }
+
+/* Overlay for more sheet */
+#sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 299;
+  display: none;
+}
+
+#sheet-overlay.show { display: block; }
+
+/* Main area offset for sidebar */
+#main {
+  margin-left: 56px;
+  padding: 16px;
+  min-height: 100vh;
+}
+
+/* lock screen stays centered */
+#lock-screen {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* 响应式：小手机侧边栏更窄 */
+@media (max-width: 360px) {
+  #sidebar-nav { width: 44px; }
+  .nav-item { width: 40px; min-width: 40px; min-height: 40px; }
+  .nav-icon { font-size: 18px; }
+  .nav-label { font-size: 8px; }
+  #main { margin-left: 44px; }
+  #header { margin-left: 44px; }
 }
 
 /* ==================== Card ==================== */
@@ -458,70 +532,6 @@ input:focus, select:focus, textarea:focus {
   50% { opacity: 1; }
 }
 
-/* ==================== More Menu Sheet ==================== */
-#more-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%) translateY(100%);
-  width: 100%;
-  max-width: 480px;
-  background: #fff;
-  border-radius: 24px 24px 0 0;
-  padding: 20px 16px env(safe-area-inset-bottom, 20px);
-  z-index: 200;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-#more-sheet.show {
-  transform: translateX(-50%) translateY(0);
-}
-
-#more-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.4);
-  z-index: 150;
-  display: none;
-}
-
-#more-overlay.show {
-  display: block;
-}
-
-.more-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-
-.more-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 12px 4px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  border-radius: var(--radius);
-  transition: all 0.15s;
-}
-
-.more-item:active {
-  background: var(--pink-light);
-  transform: scale(0.95);
-}
-
-.more-item .nav-icon {
-  font-size: 28px;
-}
-
-.more-item .nav-label {
-  font-size: 11px;
-}
-
 /* Star decoration */
 .star-bg {
   position: fixed;
@@ -586,17 +596,14 @@ input:focus, select:focus, textarea:focus {
     <button id="header-settings" onclick="renderSettings()">⚙️</button>
   </header>
   <main id="main"></main>
-  <nav id="bottom-nav"></nav>
 </div>
 
+<!-- Sidebar Nav -->
+<nav id="sidebar-nav"></nav>
+
 <!-- More Sheet -->
-<div id="more-overlay" onclick="closeMoreSheet()"></div>
-<div id="more-sheet">
-  <div style="text-align:center;margin-bottom:12px;">
-    <div style="display:inline-block;width:36px;height:4px;background:#ddd;border-radius:2px;"></div>
-  </div>
-  <div class="more-grid" id="more-grid"></div>
-</div>
+<div id="sheet-overlay" onclick="closeMoreSheet()"></div>
+<div id="more-sheet"></div>
 
 <!-- Toast -->
 <div id="toast"></div>
@@ -802,8 +809,10 @@ var currentTab = 'home';
 
 function renderNav() {
   var cfg = getNavConfig();
-  var nav = document.getElementById('bottom-nav');
-  var items = cfg.visible.slice(0, 5).map(function(key) {
+  var nav = document.getElementById('sidebar-nav');
+  // Show all visible modules in sidebar (up to 8)
+  var visibleItems = cfg.visible.slice(0, 8);
+  var items = visibleItems.map(function(key) {
     var m = ALL_MODULES.find(function(x) { return x.key === key; });
     if (!m) return '';
     return '<button class="nav-item ' + (currentTab === key ? 'active' : '') + '" data-tab="' + key + '">' +
@@ -811,16 +820,61 @@ function renderNav() {
       '<span class="nav-label">' + m.label + '</span></button>';
   }).join('');
 
-  // Add "more" button if there are hidden modules
-  if (cfg.more.length > 0) {
-    items += '<button class="nav-item" onclick="openMoreSheet()">' +
-      '<span class="nav-icon">✨</span><span class="nav-label">更多</span></button>';
-  }
+  // Add "more" button at bottom
+  items += '<button class="nav-item nav-more" onclick="openMoreSheet()">' +
+    '<span class="nav-icon">✨</span><span class="nav-label">更多</span></button>';
 
   nav.innerHTML = items;
   nav.querySelectorAll('.nav-item[data-tab]').forEach(function(btn) {
     btn.onclick = function() { switchTab(btn.dataset.tab); };
   });
+}
+
+function openMoreSheet() {
+  var cfg = getNavConfig();
+  var allModules = ALL_MODULES;
+  var visibleSet = {};
+  cfg.visible.forEach(function(k) { visibleSet[k] = true; });
+
+  var html = '<div style="font-size:var(--font-title);font-weight:700;color:var(--purple-deep);margin-bottom:12px;">全部模块</div>';
+  allModules.forEach(function(m) {
+    var isVisible = visibleSet[m.key];
+    html += '<div class="more-item" style="justify-content:space-between;" data-key="' + m.key + '">' +
+      '<span>' + m.icon + ' ' + m.label + '</span>' +
+      '<span style="font-size:var(--font-sm);color:' + (isVisible ? 'var(--purple-deep)' : 'var(--text-muted)') + ';">' + (isVisible ? '侧边栏中' : '点击添加') + '</span>' +
+      '</div>';
+  });
+
+  var sheet = document.getElementById('more-sheet');
+  sheet.innerHTML = html;
+  sheet.classList.add('show');
+  document.getElementById('sheet-overlay').classList.add('show');
+
+  sheet.querySelectorAll('.more-item').forEach(function(item) {
+    item.onclick = function() {
+      var key = this.dataset.key;
+      // Toggle: if visible and not home, move to more; if hidden, move to visible
+      if (key === 'home') { switchTab('home'); closeMoreSheet(); return; }
+
+      var idx = cfg.visible.indexOf(key);
+      if (idx >= 0 && cfg.visible.length > 1) {
+        cfg.visible.splice(idx, 1);
+        cfg.more.push(key);
+      } else if (idx < 0) {
+        cfg.more = cfg.more.filter(function(k) { return k !== key; });
+        cfg.visible.push(key);
+      }
+      STATE.navConfig = cfg;
+      LS.set('jj_navConfig', cfg);
+      closeMoreSheet();
+      renderNav();
+    };
+  });
+}
+
+function closeMoreSheet() {
+  document.getElementById('more-sheet').classList.remove('show');
+  document.getElementById('sheet-overlay').classList.remove('show');
 }
 
 function switchTab(key) {
@@ -836,33 +890,6 @@ function switchTab(key) {
 
 function renderPage(key) { switchTab(key); }
 
-function openMoreSheet() {
-  var cfg = getNavConfig();
-  var grid = document.getElementById('more-grid');
-  grid.innerHTML = cfg.more.map(function(key) {
-    var m = ALL_MODULES.find(function(x) { return x.key === key; });
-    if (!m) return '';
-    return '<button class="more-item" data-tab="' + key + '">' +
-      '<span class="nav-icon">' + m.icon + '</span>' +
-      '<span class="nav-label">' + m.label + '</span></button>';
-  }).join('');
-
-  grid.querySelectorAll('.more-item').forEach(function(btn) {
-    btn.onclick = function() {
-      closeMoreSheet();
-      switchTab(btn.dataset.tab);
-    };
-  });
-
-  document.getElementById('more-sheet').classList.add('show');
-  document.getElementById('more-overlay').classList.add('show');
-}
-
-function closeMoreSheet() {
-  document.getElementById('more-sheet').classList.remove('show');
-  document.getElementById('more-overlay').classList.remove('show');
-}
-
 // ==================== Init App ====================
 function initApp() {
   loadState();
@@ -875,80 +902,103 @@ function renderHome(main) {
   var cfg = getNavConfig();
   var allKeys = cfg.visible.concat(cfg.more);
 
-  // Check which modules have been "checked" today
-  var checked = {};
-  if (STATE.water && STATE.water[today()] && STATE.water[today()] >= 7) checked.water = true;
-  if (STATE.plan && STATE.plan.some(function(p) { return p.date === today() && p.done; })) checked.plan = true;
-  if (STATE.sport && STATE.sport.some(function(s) { return s.date === today(); })) checked.sport = true;
-  if (STATE.money && STATE.money.some(function(m) { return m.date === today(); })) checked.money = true;
-  if (STATE.study && STATE.study.some(function(s) { return s.date === today(); })) checked.study = true;
+  // 检查各模块今日完成情况
+  var d = today();
+  var waterCups = (STATE.water && STATE.water[d]) ? STATE.water[d] : 0;
+  var waterDone = waterCups >= 7;
+  var sportDone = STATE.sport && STATE.sport.some(function(s) { return s.date === d; });
+  var moneyDone = STATE.money && STATE.money.some(function(m) { return m.date === d; });
+  var planUndone = STATE.plans ? STATE.plans.filter(function(p) { return p.date === d && !p.done; }).length : 0;
+  var planDone = planUndone === 0 && STATE.plans && STATE.plans.some(function(p) { return p.date === d; });
+  var studyDone = STATE.study && STATE.study.some(function(s) { return s.date === d; });
+  var bankDone = (STATE.bankStudy && STATE.bankStudy.logs && STATE.bankStudy.logs.some(function(l) { return l.date === d; }));
+  var koreanDone = (STATE.korean && STATE.korean.logs && STATE.korean.logs.some(function(l) { return l.date === d; }));
+
+  // 今日已花费
+  var todaySpent = 0;
+  if (STATE.money) {
+    STATE.money.filter(function(m) { return m.date === d && !m.fromMom; }).forEach(function(m) { todaySpent += Number(m.amount) || 0; });
+  }
+
+  // 构建未完成提醒列表
+  var undoneItems = [];
+  if (!waterDone) undoneItems.push({ icon: '💧', label: '今日还未喝够水', detail: '已喝 ' + waterCups + '/7 杯 (' + (waterCups*300) + 'ml/2000ml)', key: 'water', color: '#FF9ECF' });
+  if (!moneyDone) undoneItems.push({ icon: '💰', label: '今日还未记账', detail: '已花 ¥' + todaySpent.toFixed(2), key: 'money', color: '#C9A6E2' });
+  if (!sportDone) undoneItems.push({ icon: '🏃', label: '今日还未运动', detail: '记得打卡哦~', key: 'sport', color: '#A87BC9' });
+  if (planUndone > 0) undoneItems.push({ icon: '📋', label: '还有 ' + planUndone + ' 件事未完成', detail: '点我去完成', key: 'plan', color: '#F0A060' });
+  if (!studyDone) undoneItems.push({ icon: '📚', label: '今日还未记录学习', detail: '记录学习收获', key: 'study', color: '#6BB5E0' });
+  if (!bankDone) undoneItems.push({ icon: '🏦', label: '今日还未学银从', detail: '距考试还有 ' + Math.ceil((new Date('2026-10-24') - new Date()) / (1000*60*60*24)) + ' 天', key: 'bank', color: '#E06060' });
+  if (!koreanDone) undoneItems.push({ icon: '🇰🇷', label: '今日还未学韩语', detail: '多邻国打卡了吗？', key: 'korean', color: '#6BB5E0' });
+
+  var allDone = undoneItems.length === 0;
 
   main.innerHTML =
     '<div style="text-align:center;padding:8px 0 16px;">' +
-      '<div id="cosmos" style="width:200px;height:200px;margin:0 auto;"></div>' +
+      '<div id="cosmos" style="width:180px;height:180px;margin:0 auto;"></div>' +
       '<div style="font-size:16px;font-weight:700;color:var(--text);margin-top:8px;">公主的小宇宙 ✨</div>' +
       '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">' + today() + '</div>' +
     '</div>' +
     '<div class="card" id="daily-quote-card"><div class="card-title">🌸 每日金句</div><div id="daily-quote" style="font-size:14px;color:var(--text);margin-top:8px;line-height:1.6;">加载中...</div></div>' +
     '<div class="card" id="daily-news-card"><div class="card-title">📰 今日要闻</div><div id="daily-news" style="font-size:13px;color:var(--text);margin-top:8px;">加载中...</div></div>' +
-    '<div class="card"><div class="card-title">✅ 今日打卡</div><div id="home-checkin" style="margin-top:12px;"></div></div>' +
-    '<div class="card"><div class="card-title">⚡ 快速入口</div><div id="home-quick" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;"></div></div>';
+    '<div class="card" style="' + (allDone ? 'background:linear-gradient(135deg,#F0FFF0,#E8F8E8);' : 'background:linear-gradient(135deg,#FFF5F5,#FFF0F5);') + '">' +
+      '<div class="card-title">' + (allDone ? '🎉 今日全部完成！' : '⚠️ 今日提醒') + '</div>' +
+      '<div id="home-remind" style="margin-top:8px;"></div>' +
+    '</div>';
 
-  drawCosmos(document.getElementById('cosmos'), checked, allKeys.length);
+  drawCosmos(document.getElementById('cosmos'), undoneItems, allKeys.length - 1, allDone);
   loadDailyQuote();
   loadDailyNews();
 
-  // Checkin list
-  var checkinHtml = allKeys.filter(function(k) { return k !== 'home'; }).map(function(key) {
-    var m = ALL_MODULES.find(function(x) { return x.key === key; });
-    if (!m) return '';
-    var isDone = checked[key];
-    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.04);">' +
-      '<span style="font-size:18px;">' + (isDone ? '✅' : '⬜') + '</span>' +
-      '<span style="font-size:20px;">' + m.icon + '</span>' +
-      '<span style="flex:1;font-size:13px;color:var(--text);">' + m.label + '</span>' +
-      '<span style="font-size:11px;color:' + (isDone ? '#5cb85c' : 'var(--text-muted)') + ';">' + (isDone ? '已打卡' : '未打卡') + '</span>' +
-    '</div>';
-  }).join('');
-  document.getElementById('home-checkin').innerHTML = checkinHtml;
+  // 未完成提醒列表
+  var remindHtml;
+  if (allDone) {
+    remindHtml = '<div style="text-align:center;padding:16px 0;font-size:16px;color:#308030;">👑 公主今天真棒！全部搞定~</div>';
+  } else {
+    remindHtml = undoneItems.map(function(item) {
+      return '<div class="card-sm" style="display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:8px;border-radius:12px;background:rgba(255,255,255,0.6);cursor:pointer;" data-tab="' + item.key + '">' +
+        '<span style="font-size:28px;">' + item.icon + '</span>' +
+        '<div style="flex:1;">' +
+          '<div style="font-size:var(--font-body);font-weight:600;color:var(--text);">' + item.label + '</div>' +
+          '<div style="font-size:var(--font-sm);color:var(--text-muted);">' + item.detail + '</div>' +
+        '</div>' +
+        '<span style="font-size:18px;color:var(--text-muted);">→</span>' +
+      '</div>';
+    }).join('');
+  }
+  document.getElementById('home-remind').innerHTML = remindHtml;
 
-  // Quick entry
-  var quickHtml = allKeys.map(function(key) {
-    var m = ALL_MODULES.find(function(x) { return x.key === key; });
-    if (!m) return '';
-    return '<button class="more-item" data-tab="' + key + '" style="padding:8px 2px;">' +
-      '<span class="nav-icon">' + m.icon + '</span>' +
-      '<span class="nav-label">' + m.label + '</span></button>';
-  }).join('');
-  document.getElementById('home-quick').innerHTML = quickHtml;
-  document.getElementById('home-quick').querySelectorAll('.more-item').forEach(function(btn) {
-    btn.onclick = function() { switchTab(btn.dataset.tab); };
+  // 绑定点击跳转
+  var remindEl = document.getElementById('home-remind');
+  remindEl.querySelectorAll('[data-tab]').forEach(function(el) {
+    el.onclick = function() { switchTab(el.dataset.tab); };
   });
 }
 
-function drawCosmos(container, checked, total) {
+function drawCosmos(container, undoneItems, total, allDone) {
   var cx = 100, cy = 100;
+  var undoneCount = undoneItems.length;
+  var doneCount = total - undoneCount;
+  
   var svg = '<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">';
-  // Background circle
   svg += '<defs><radialGradient id="cosmoGrad"><stop offset="0%" stop-color="#FFB6D9" stop-opacity="0.3"/><stop offset="100%" stop-color="#C9A6E2" stop-opacity="0.1"/></radialGradient></defs>';
   svg += '<circle cx="100" cy="100" r="90" fill="url(#cosmoGrad)"/>';
   // Stars orbiting
-  var doneCount = Object.keys(checked).length;
   for (var i = 0; i < total; i++) {
     var angle = (i / total) * Math.PI * 2 - Math.PI / 2;
     var r = 75;
     var x = cx + Math.cos(angle) * r;
     var y = cy + Math.sin(angle) * r;
     var isActive = i < doneCount;
-    svg += '<circle cx="' + x + '" cy="' + y + '" r="' + (isActive ? 6 : 4) + '" fill="' + (isActive ? '#FFD700' : '#E8DAF5') + '" ' + (isActive ? 'style="filter:drop-shadow(0 0 4px #FFD700)"' : '') + '/>';
-    if (isActive) {
-      svg += '<animate xlink:href="" attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" begin="' + i * 0.2 + 's"/>';
-    }
+    svg += '<circle cx="' + x + '" cy="' + y + '" r="' + (isActive ? 7 : 5) + '" fill="' + (isActive ? '#FFD700' : '#E8DAF5') + '" ' + (isActive ? 'style="filter:drop-shadow(0 0 6px #FFD700)"' : '') + '>' +
+      (isActive ? '<animate attributeName="opacity" values="1;0.6;1" dur="2s" repeatCount="indefinite" begin="' + (i * 0.15) + 's"/>' : '') +
+      '</circle>';
   }
   // Crown center
   svg += '<text x="100" y="108" text-anchor="middle" font-size="36">👑</text>';
-  if (doneCount >= total) {
+  if (allDone) {
     svg += '<text x="100" y="140" text-anchor="middle" font-size="11" fill="#FFD700" font-weight="bold">今日圆满 ✨</text>';
+  } else if (undoneCount > 0) {
+    svg += '<text x="100" y="140" text-anchor="middle" font-size="11" fill="var(--text-muted)">' + undoneCount + ' 项待完成</text>';
   }
   svg += '</svg>';
   container.innerHTML = svg;
@@ -1190,14 +1240,39 @@ function deleteMoney(id) {
 // ==================== Sport Module ====================
 var SPORT_TYPES = ['力量私教', '跑步', '爬楼', '其他'];
 
+// 训练推荐数据
+var TRAINING_RECOMMENDATIONS = [
+  { title: '欧阳春晓·沙漏腰', desc: '15分钟瘦腰训练，适合新手', link: 'https://search.bilibili.com/all?keyword=欧阳春晓+沙漏腰', tag: '瘦腰' },
+  { title: '帕梅拉·三部曲', desc: '腹部+臀部+全身燃脂', link: 'https://search.bilibili.com/all?keyword=帕梅拉+三部曲', tag: '燃脂' },
+  { title: '直角肩训练', desc: '10分钟改善圆肩驼背', link: 'https://search.bilibili.com/all?keyword=直角肩+训练+女生', tag: '体态' },
+  { title: '马甲线雕刻', desc: '15分钟腹肌训练', link: 'https://search.bilibili.com/all?keyword=马甲线+训练+女生+新手', tag: '腹部' },
+  { title: '瘦拜拜肉', desc: '哑铃手臂塑形训练', link: 'https://search.bilibili.com/all?keyword=瘦手臂+拜拜肉+哑铃', tag: '手臂' },
+  { title: '瘦大腿内侧', desc: '帕梅拉同款瘦腿', link: 'https://search.bilibili.com/all?keyword=瘦大腿+内侧+训练+女生', tag: '腿部' },
+  { title: '哑铃全身训练', desc: '适合女生的力量训练', link: 'https://search.bilibili.com/all?keyword=哑铃+力量训练+女生+新手', tag: '力量' },
+  { title: '小红书·体态改善', desc: '热门的体态矫正教程', link: 'https://www.xiaohongshu.com/search_result?keyword=体态改善+女生', tag: '体态' },
+  { title: '抖音·燃脂舞', desc: '热门燃脂舞蹈跟练', link: 'https://www.douyin.com/search/燃脂舞+女生+新手', tag: '燃脂' },
+];
+
+// 预置运动计划模板
+var WORKOUT_PLANS = [
+  { day: '周一', focus: '上肢力量', exercises: '哑铃推举 3组×12\n哑铃侧平举 3组×12\n俯身划船 3组×10\n手臂弯举 3组×12' },
+  { day: '周二', focus: '有氧燃脂', exercises: '爬坡30分钟 (坡度8 速度5)\n或爬楼20层×3组' },
+  { day: '周三', focus: '腹部核心', exercises: '欧阳春晓沙漏腰 跟练\n平板支撑 3组×30秒\n卷腹 3组×15\n俄罗斯转体 3组×20' },
+  { day: '周四', focus: '下肢力量', exercises: '深蹲 4组×12\n弓步蹲 3组×10 (每侧)\n臀桥 3组×15\n小腿提踵 3组×20' },
+  { day: '周五', focus: '有氧+全身', exercises: '帕梅拉三部曲 跟练\n或爬坡25分钟' },
+  { day: '周六', focus: '体态改善', exercises: '直角肩训练 跟练\n背部拉伸 3组×30秒\n肩部环绕 3组×15\n靠墙站姿 5分钟' },
+  { day: '周日', focus: '休息/轻运动', exercises: '拉伸放松\n瑜伽15分钟\n或散步30分钟' },
+];
+
 function renderSport(main) {
-  // Calendar
   var now = new Date();
   var monthPrefix = today().slice(0, 7);
   var sportDays = STATE.sport.filter(function(s) { return s.date && s.date.startsWith(monthPrefix); });
   var monthDays = now.getDate();
   var sportCount = sportDays.length;
   var totalMinutes = sportDays.reduce(function(s, r) { return s + parseInt(r.duration || 0); }, 0);
+  var todayWeekDay = now.getDay(); // 0=Sun, 1=Mon...
+  var todayPlan = WORKOUT_PLANS[(todayWeekDay + 6) % 7]; // Mon=0
 
   main.innerHTML =
     '<div class="card" style="background:linear-gradient(135deg,var(--purple),var(--purple-deep));color:#fff;text-align:center;">' +
@@ -1206,13 +1281,92 @@ function renderSport(main) {
       '<div style="font-size:11px;opacity:0.8;">总时长 ' + totalMinutes + ' 分钟</div>' +
     '</div>' +
     '<button class="btn btn-primary" style="width:100%;margin-bottom:16px;" onclick="showSportModal()">➕ 运动打卡</button>' +
+
+    // 今日训练计划
+    '<div class="card" style="background:linear-gradient(135deg,#FFF5FA,#F5E6F5);">' +
+      '<div class="card-title">📋 今日训练计划 · ' + todayPlan.day + '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+        '<span class="badge" style="background:var(--purple-light);color:var(--purple-deep);font-weight:600;">' + todayPlan.focus + '</span>' +
+      '</div>' +
+      '<div style="font-size:var(--font-sm);color:var(--text);white-space:pre-line;line-height:1.8;background:rgba(255,255,255,0.5);padding:12px;border-radius:12px;">' + todayPlan.exercises + '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;">' +
+        '<button class="btn btn-sm btn-purple" onclick="saveWorkoutPlan()">✅ 完成今日计划</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="switchPlanDay(-1)">◀ 前一天</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="switchPlanDay(1)">后一天 ▶</button>' +
+      '</div>' +
+    '</div>' +
+
+    // 训练推荐
+    '<div class="card">' +
+      '<div class="card-title">💡 热门训练推荐</div>' +
+      '<div style="font-size:var(--font-sm);color:var(--text-muted);margin-bottom:8px;">参考小红书/抖音/B站热门内容</div>' +
+      '<div id="training-recs" style="display:flex;flex-direction:column;gap:8px;"></div>' +
+    '</div>' +
+
     '<div class="card"><div class="card-title">📅 运动日历</div><div id="sport-cal" style="margin-top:8px;"></div></div>' +
     '<div class="card"><div class="card-title">💪 身体数据</div><div id="sport-body" style="margin-top:8px;"></div><button class="btn btn-sm btn-outline" style="margin-top:8px;" onclick="showBodyModal()">记录身体数据</button></div>' +
     '<div class="card"><div class="card-title">📋 最近运动</div><div id="sport-recent" style="margin-top:8px;"></div></div>';
 
+  // 渲染训练推荐
+  var recsHtml = TRAINING_RECOMMENDATIONS.map(function(rec) {
+    return '<a href="' + rec.link + '" target="_blank" style="text-decoration:none;color:inherit;">' +
+      '<div class="card-sm" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:var(--card-bg);">' +
+        '<span class="badge" style="flex-shrink:0;min-width:40px;text-align:center;">' + rec.tag + '</span>' +
+        '<div style="flex:1;">' +
+          '<div style="font-size:var(--font-body);font-weight:600;">' + rec.title + '</div>' +
+          '<div style="font-size:var(--font-sm);color:var(--text-muted);">' + rec.desc + '</div>' +
+        '</div>' +
+        '<span style="font-size:16px;">🔗</span>' +
+      '</div></a>';
+  }).join('');
+  document.getElementById('training-recs').innerHTML = recsHtml;
+
   renderSportCalendar();
   drawBodyChart();
   renderRecentSport();
+
+  // 存储当前查看的计划日偏移
+  window._planOffset = window._planOffset || 0;
+}
+
+function switchPlanDay(dir) {
+  window._planOffset = (window._planOffset || 0) + dir;
+  // 限制范围
+  if (window._planOffset < -3) window._planOffset = -3;
+  if (window._planOffset > 3) window._planOffset = 3;
+  
+  var now = new Date();
+  var targetDay = (now.getDay() + window._planOffset + 7) % 7; // 0=Sun
+  var plan = WORKOUT_PLANS[(targetDay + 6) % 7];
+  
+  // 找到计划卡片并更新
+  var cards = document.querySelectorAll('#main .card');
+  cards.forEach(function(card) {
+    var title = card.querySelector('.card-title');
+    if (title && title.textContent.indexOf('今日训练计划') !== -1) {
+      title.textContent = '📋 训练计划 · ' + plan.day + (window._planOffset === 0 ? ' (今天)' : '');
+      var badge = card.querySelector('.badge');
+      if (badge) badge.textContent = plan.focus;
+      var content = card.querySelector('div[style*="white-space:pre-line"]');
+      if (content) content.textContent = plan.exercises;
+    }
+  });
+}
+
+function saveWorkoutPlan() {
+  var now = new Date();
+  var plan = WORKOUT_PLANS[(now.getDay() + 6) % 7];
+  STATE.sport.push({
+    id: uid(),
+    type: plan.focus,
+    duration: 30,
+    date: today(),
+    note: '完成训练计划：' + plan.day + ' ' + plan.focus,
+    moves: plan.exercises
+  });
+  saveState('sport');
+  toast('训练计划完成！💪 已自动打卡');
+  renderSport(document.getElementById('main'));
 }
 
 function showSportModal() {
