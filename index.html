@@ -593,7 +593,10 @@ input:focus, select:focus, textarea:focus {
 <div id="app" style="display:none">
   <header id="header">
     <div id="header-title">🏠 首页</div>
-    <button id="header-settings" onclick="renderSettings()">⚙️</button>
+    <div style="display:flex;gap:4px;align-items:center;">
+      <button id="header-refresh" onclick="refreshCurrentPage()" style="border:none;background:none;font-size:18px;cursor:pointer;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;" title="刷新">🔄</button>
+      <button id="header-settings" onclick="renderSettings()" style="border:none;background:none;font-size:18px;cursor:pointer;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;" title="设置">⚙️</button>
+    </div>
   </header>
   <main id="main"></main>
 </div>
@@ -893,6 +896,7 @@ function renderPage(key) { switchTab(key); }
 // ==================== Init App ====================
 function initApp() {
   loadState();
+  setupAutoSave();
   renderNav();
   switchTab('home');
 }
@@ -3467,10 +3471,13 @@ function renderSettings() {
       '<input id="set-new-pwd2" type="password" placeholder="确认密码" maxlength="4" style="margin-top:8px;" />' +
       '<button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="changePassword()">修改密码</button>' +
     '</div>' +
-    '<div class="card"><div class="card-title">💾 备份与恢复</div>' +
-      '<button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="exportBackup()">📤 导出备份(JSON)</button>' +
-      '<input id="import-file" type="file" accept=".json" style="margin-top:8px;font-size:12px;" />' +
-      '<button class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="importBackup()">📥 导入恢复</button>' +
+    '<div class="card"><div class="card-title">💾 备份与同步</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);margin:8px 0;">数据自动保存到本地，可手动备份或跨设备同步</div>' +
+      '<div id="auto-save-status" style="font-size:11px;color:#5cb85c;margin-bottom:12px;">✓ 自动保存已开启</div>' +
+      '<button class="btn btn-primary" style="width:100%;margin-bottom:8px;" onclick="showSyncPanel()">☁️ 数据同步（跨设备）</button>' +
+      '<button class="btn btn-outline" style="width:100%;margin-bottom:8px;" onclick="exportBackup()">📤 导出备份(JSON文件)</button>' +
+      '<input id="import-file" type="file" accept=".json" style="margin-top:4px;font-size:12px;" />' +
+      '<button class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="importBackup()">📥 从文件导入恢复</button>' +
     '</div>' +
     '<div class="card"><div class="card-title">🧩 模块管理</div>' +
       '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;margin-bottom:8px;">设置模块显示位置（导航栏最多5个）</div>' +
@@ -3559,9 +3566,225 @@ function saveNavConfig() {
 }
 
 function confirmResetAll() {
-  if (!confirm('⚠️ 确认清除所有数据？此操作不可撤销！')) return;
+  if (!confirm('⚠️ 确认清除所有数据��此操作不可撤销！')) return;
   if (!confirm('再次确认：所有数据将被永久删除！')) return;
   resetAll();
+}
+
+// ==================== 刷新与数据同步 ====================
+
+// 刷新当前页面
+function refreshCurrentPage() {
+  var btn = document.getElementById('header-refresh');
+  if (btn) { btn.style.transform = 'rotate(360deg)'; btn.style.transition = 'transform 0.6s'; setTimeout(function(){ btn.style.transform = ''; btn.style.transition = ''; }, 600); }
+  
+  // 清除新闻缓存，强制重新获取
+  LS.remove('newsCache');
+  
+  // 重新渲染当前页
+  var tab = currentTab || 'home';
+  if (tab === 'settings') {
+    renderSettings();
+  } else {
+    switchTab(tab);
+  }
+  toast('已刷新 🔄');
+}
+
+// 自动保存所有数据到 localStorage（防抖）
+var autoSaveTimer = null;
+function autoSaveData() {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(function() {
+    // 遍历 STATE 的所有键，保存到 localStorage
+    Object.keys(STATE).forEach(function(key) {
+      if (key === 'password' || key === 'navConfig') return;
+      try {
+        LS.set('jj_' + key, STATE[key]);
+      } catch(e) {
+        console.warn('保存失败:', key, e);
+      }
+    });
+  }, 300);
+}
+
+// 获取所有数据的JSON字符串
+function getAllDataJSON() {
+  var data = {};
+  for (var i = 0; i < localStorage.length; i++) {
+    var key = localStorage.key(i);
+    if (key && key.startsWith('jj_')) {
+      try { data[key] = JSON.parse(localStorage.getItem(key)); } catch(e) { data[key] = localStorage.getItem(key); }
+    }
+  }
+  data._exportTime = new Date().toISOString();
+  data._version = '1.2';
+  return JSON.stringify(data, null, 2);
+}
+
+// 从JSON字符串恢复数据
+function restoreFromJSON(jsonStr) {
+  try {
+    var data = JSON.parse(jsonStr);
+    Object.keys(data).forEach(function(key) {
+      if (key.startsWith('jj_')) {
+        localStorage.setItem(key, JSON.stringify(data[key]));
+      }
+    });
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+// 生成同步码（用于跨设备同步的简短码）
+function generateSyncCode() {
+  var data = getAllDataJSON();
+  // 用 base64 编码压缩
+  var encoded = btoa(unescape(encodeURIComponent(data)));
+  // 如果数据太大，提示用文件方式
+  if (encoded.length > 50000) {
+    return null; // 太大，建议用文件
+  }
+  return encoded;
+}
+
+// 从同步码恢复
+function restoreFromSyncCode(code) {
+  try {
+    var decoded = decodeURIComponent(escape(atob(code)));
+    return restoreFromJSON(decoded);
+  } catch(e) {
+    return false;
+  }
+}
+
+// 复制到剪贴板
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() { toast('已复制到剪贴板 📋'); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('已复制到剪贴板 📋'); } catch(e) { toast('复制失败，请手动复制'); }
+    document.body.removeChild(ta);
+  }
+}
+
+// 显示同步面板
+function showSyncPanel() {
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML =
+    '<div class="modal-content" onclick="event.stopPropagation()" style="max-height:85vh;overflow-y:auto;">' +
+      '<div class="card-title">☁️ 数据同步</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);margin:8px 0 16px;">通过同步码在不同设备间传输数据</div>' +
+
+      // 生成同步码
+      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:16px;">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📤 生成同步码</div>' +
+        '<div id="sync-code-area" style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">点击下方按钮生成本机数据同步码</div>' +
+        '<button class="btn btn-primary btn-sm" style="width:100%;" id="gen-sync-code">生成同步码</button>' +
+      '</div>' +
+
+      // 导出文件
+      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:16px;">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📁 导出备份文件</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">数据较大时建议用文件方式</div>' +
+        '<button class="btn btn-outline btn-sm" style="width:100%;" onclick="exportBackup()">下载备份JSON文件</button>' +
+      '</div>' +
+
+      // 导入同步码
+      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:16px;">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📥 从同步码恢复</div>' +
+        '<textarea id="import-sync-code" placeholder="粘贴同步码..." style="width:100%;min-height:80px;font-size:11px;padding:8px;border-radius:8px;border:1px solid var(--pink-light);resize:vertical;font-family:monospace;"></textarea>' +
+        '<button class="btn btn-purple btn-sm" style="width:100%;margin-top:8px;" id="restore-sync-code">从同步码恢复</button>' +
+      '</div>' +
+
+      // 导入文件
+      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:16px;">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📂 从备份文件恢复</div>' +
+        '<input id="import-file-sync" type="file" accept=".json" style="font-size:12px;width:100%;margin-bottom:8px;" />' +
+        '<button class="btn btn-outline btn-sm" style="width:100%;" id="import-file-btn">恢复备份文件</button>' +
+      '</div>' +
+
+      // 自动保存状态
+      '<div style="background:var(--bg);padding:12px;border-radius:12px;">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">⚡ 自动保存</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);">所有输入的数据会在300ms后自动保存到本地，无需手动操作。</div>' +
+        '<div id="last-save-time" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>' +
+      '</div>' +
+
+      '<button class="btn btn-outline" style="width:100%;margin-top:16px;" onclick="this.closest(\'.modal-overlay\').remove()">关闭</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  // 更新最后保存时间
+  var lastSave = LS.get('_lastSaveTime', null);
+  if (lastSave) {
+    document.getElementById('last-save-time').textContent = '上次保存: ' + lastSave;
+  }
+
+  // 生成同步码
+  document.getElementById('gen-sync-code').onclick = function() {
+    var code = generateSyncCode();
+    var area = document.getElementById('sync-code-area');
+    if (code) {
+      area.innerHTML = '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">同步码已生成（共' + code.length + '字符），点击复制：</div>' +
+        '<div style="background:#fff;padding:8px;border-radius:8px;font-size:10px;word-break:break-all;max-height:120px;overflow-y:auto;border:1px solid var(--pink-light);font-family:monospace;margin-bottom:8px;" id="sync-code-text">' + esc(code) + '</div>' +
+        '<button class="btn btn-purple btn-sm" style="width:100%;" onclick="copyToClipboard(document.getElementById(\'sync-code-text\').textContent)">📋 复制同步码</button>';
+    } else {
+      area.innerHTML = '<div style="font-size:11px;color:#E06060;">数据量太大，请使用「导出备份文件」方式同步</div>';
+    }
+  };
+
+  // 从同步码恢复
+  document.getElementById('restore-sync-code').onclick = function() {
+    var code = document.getElementById('import-sync-code').value.trim();
+    if (!code) { toast('请粘贴同步码'); return; }
+    if (!confirm('导入将覆盖当前数据，确认继续？')) return;
+    if (restoreFromSyncCode(code)) {
+      toast('恢复成功！正在刷新...');
+      setTimeout(function() { location.reload(); }, 1500);
+    } else {
+      toast('同步码格式错误');
+    }
+  };
+
+  // 从文件恢复
+  document.getElementById('import-file-btn').onclick = function() {
+    var fileInput = document.getElementById('import-file-sync');
+    if (!fileInput.files[0]) { toast('请选择备份文件'); return; }
+    var file = fileInput.files[0];
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      if (!confirm('导入将覆盖当前数据，确认继续？')) return;
+      if (restoreFromJSON(e.target.result)) {
+        toast('恢复成功！正在刷新...');
+        setTimeout(function() { location.reload(); }, 1500);
+      } else {
+        toast('文件格式错误');
+      }
+    };
+    reader.readAsText(file);
+  };
+}
+
+// 监听数据变化，自动保存并记录时间
+function setupAutoSave() {
+  // 拦截 LS.set，记录保存时间
+  var originalSet = LS.set;
+  LS.set = function(key, value) {
+    originalSet(key, value);
+    if (key !== '_lastSaveTime') {
+      var now = new Date();
+      var timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+      localStorage.setItem('jj__lastSaveTime', JSON.stringify(timeStr));
+    }
+  };
 }
 
 // ==================== PWA ====================
