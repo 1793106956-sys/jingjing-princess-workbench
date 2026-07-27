@@ -62,6 +62,67 @@ body {
   box-shadow: 0 0 40px rgba(201, 166, 226, 0.15);
 }
 
+/* ==================== 可爱背景装饰 ==================== */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(255,182,217,0.15) 0%, transparent 8%),
+    radial-gradient(circle at 85% 15%, rgba(255,215,0,0.08) 0%, transparent 6%),
+    radial-gradient(circle at 75% 60%, rgba(201,166,226,0.12) 0%, transparent 8%),
+    radial-gradient(circle at 25% 80%, rgba(255,182,217,0.1) 0%, transparent 6%),
+    radial-gradient(circle at 50% 45%, rgba(255,215,0,0.05) 0%, transparent 10%);
+}
+
+/* 星星浮动动画 */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-8px) rotate(5deg); }
+  66% { transform: translateY(4px) rotate(-3deg); }
+}
+@keyframes drift {
+  0% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(10px) translateY(-5px); }
+  100% { transform: translateX(0) translateY(0); }
+}
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+/* 背景装饰元素 */
+.deco-star {
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  animation: twinkle 3s ease-in-out infinite;
+}
+.deco-float {
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  animation: float-slow 4s ease-in-out infinite;
+}
+.deco-drift {
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  animation: drift 6s ease-in-out infinite;
+}
+
+#app, #sidebar-nav, #more-sheet, #lock-screen {
+  position: relative;
+  z-index: 1;
+}
+
 /* ==================== Lock Screen ==================== */
 #lock-screen {
   position: fixed;
@@ -70,7 +131,7 @@ body {
   width: 100%;
   max-width: 480px;
   height: 100vh;
-  background: linear-gradient(135deg, #FFB6D9 0%, #C9A6E2 50%, #A87BC9 100%);
+  background: linear-gradient(135deg, #FFB6D9 0%, #E8B8E8 30%, #C9A6E2 70%, #A87BC9 100%);
   z-index: 10000;
   display: flex;
   flex-direction: column;
@@ -78,6 +139,33 @@ body {
   justify-content: center;
   gap: 24px;
   transition: opacity 0.5s, transform 0.5s;
+  overflow: hidden;
+}
+
+/* 锁屏背景星星 */
+#lock-screen::before {
+  content: '✨ ⭐ ✨ 🌟 ⭐ ✨ 🌟 ⭐ ✨ ⭐ ✨ 🌟 ⭐ ✨';
+  position: absolute;
+  top: 8%; left: 0;
+  width: 100%;
+  font-size: 14px;
+  text-align: center;
+  opacity: 0.3;
+  animation: twinkle 2s ease-in-out infinite;
+  letter-spacing: 20px;
+  pointer-events: none;
+}
+#lock-screen::after {
+  content: '⭐ ✨ 🌟 ✨ ⭐ ✨ 🌟 ⭐ ✨ ⭐ 🌟 ✨ ⭐ ✨ ⭐';
+  position: absolute;
+  bottom: 10%; left: 0;
+  width: 100%;
+  font-size: 12px;
+  text-align: center;
+  opacity: 0.25;
+  animation: twinkle 2.5s ease-in-out infinite 0.5s;
+  letter-spacing: 18px;
+  pointer-events: none;
 }
 
 #lock-screen.unlocked {
@@ -87,8 +175,9 @@ body {
 }
 
 .lock-crown {
-  font-size: 48px;
+  font-size: 56px;
   animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
 }
 
 @keyframes float {
@@ -116,17 +205,19 @@ body {
 }
 
 .lock-dot {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: 2px solid rgba(255,255,255,0.6);
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .lock-dot.filled {
   background: #FFD700;
   border-color: #FFD700;
-  box-shadow: 0 0 10px rgba(255,215,0,0.5);
+  box-shadow: 0 0 12px rgba(255,215,0,0.6);
+  transform: scale(1.2);
+  animation: heartbeat 0.6s ease;
 }
 
 .lock-keypad {
@@ -145,13 +236,14 @@ body {
   font-size: 22px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.15);
 }
 
 .lock-key:active {
+  transform: scale(0.85);
   background: rgba(255,255,255,0.4);
-  transform: scale(0.92);
 }
 
 .lock-key.del {
@@ -256,11 +348,26 @@ body {
 
 .nav-item.active {
   background: var(--pink-light);
+  position: relative;
+}
+
+.nav-item.active::after {
+  content: '⭐';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 8px;
+  animation: heartbeat 1.5s ease-in-out infinite;
 }
 
 .nav-icon {
   font-size: 20px;
   line-height: 1;
+  transition: transform 0.2s;
+}
+
+.nav-item.active .nav-icon {
+  transform: scale(1.2) rotate(-5deg);
 }
 
 .nav-label {
@@ -357,8 +464,26 @@ body {
   background: var(--card-bg);
   border-radius: var(--radius);
   padding: 16px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 2px 12px rgba(255, 182, 217, 0.15);
   margin-bottom: var(--gap);
+  position: relative;
+  border: 1.5px solid rgba(255, 182, 217, 0.12);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:active {
+  transform: scale(0.98);
+}
+
+/* 卡片左上角小星星装饰 */
+.card::before {
+  content: '✨';
+  position: absolute;
+  top: -6px;
+  right: 12px;
+  font-size: 10px;
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .card-title {
@@ -366,6 +491,16 @@ body {
   font-weight: 700;
   color: var(--text);
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.card-title::after {
+  content: '💕';
+  font-size: 12px;
+  opacity: 0.3;
+  margin-left: auto;
 }
 
 /* ==================== Buttons ==================== */
@@ -377,16 +512,18 @@ body {
   padding: 10px 16px;
   min-height: 44px;
   border: none;
-  border-radius: var(--radius);
+  border-radius: 24px;
   font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   font-family: var(--font-family);
+  position: relative;
+  overflow: hidden;
 }
 
 .btn:active {
-  transform: scale(0.96);
+  transform: scale(0.92);
 }
 
 .btn-primary {
@@ -559,6 +696,59 @@ input:focus, select:focus, textarea:focus {
 </style>
 </head>
 <body>
+
+<!-- ==================== 可爱背景装饰 ==================== -->
+<div class="star-bg" id="star-bg"></div>
+
+<!-- 乌萨奇装饰（SVG手绘，固定在角落） -->
+<div style="position:fixed;bottom:12px;right:8px;z-index:0;pointer-events:none;opacity:0.5;width:60px;" class="deco-drift">
+  <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+    <!-- 乌萨奇身体 -->
+    <ellipse cx="50" cy="65" rx="38" ry="42" fill="#F5E6D3" stroke="#D4B896" stroke-width="1.5"/>
+    <!-- 耳朵 -->
+    <ellipse cx="32" cy="28" rx="10" ry="18" fill="#F5E6D3" stroke="#D4B896" stroke-width="1.5" transform="rotate(-15 32 28)"/>
+    <ellipse cx="68" cy="28" rx="10" ry="18" fill="#F5E6D3" stroke="#D4B896" stroke-width="1.5" transform="rotate(15 68 28)"/>
+    <!-- 耳朵内侧 -->
+    <ellipse cx="32" cy="32" rx="4" ry="10" fill="#FFCCCC" transform="rotate(-15 32 32)"/>
+    <ellipse cx="68" cy="32" rx="4" ry="10" fill="#FFCCCC" transform="rotate(15 68 32)"/>
+    <!-- 眼睛 -->
+    <ellipse cx="38" cy="58" rx="4" ry="6" fill="#333"/>
+    <ellipse cx="62" cy="58" rx="4" ry="6" fill="#333"/>
+    <circle cx="39" cy="56" r="1.5" fill="#fff"/>
+    <circle cx="63" cy="56" r="1.5" fill="#fff"/>
+    <!-- 腮红 -->
+    <ellipse cx="28" cy="72" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/>
+    <ellipse cx="72" cy="72" rx="6" ry="4" fill="#FFB6C1" opacity="0.6"/>
+    <!-- 嘴巴 -->
+    <path d="M 44 78 Q 50 84 56 78" stroke="#333" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <!-- 头顶星星 -->
+    <text x="50" y="18" text-anchor="middle" font-size="14">⭐</text>
+  </svg>
+</div>
+
+<!-- 星星人装饰（SVG手绘，固定在左上角） -->
+<div style="position:fixed;top:70px;left:64px;z-index:0;pointer-events:none;opacity:0.4;width:50px;" class="deco-float">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!-- 星星人身体 -->
+    <path d="M 50 10 L 58 38 L 88 38 L 64 56 L 72 84 L 50 68 L 28 84 L 36 56 L 12 38 L 42 38 Z" fill="#FFD700" stroke="#E6B800" stroke-width="1.5"/>
+    <!-- 眼睛 -->
+    <ellipse cx="42" cy="45" rx="3" ry="4" fill="#333"/>
+    <ellipse cx="58" cy="45" rx="3" ry="4" fill="#333"/>
+    <circle cx="43" cy="44" r="1" fill="#fff"/>
+    <circle cx="59" cy="44" r="1" fill="#fff"/>
+    <!-- 腮红 -->
+    <circle cx="35" cy="52" r="3" fill="#FFB6C1" opacity="0.7"/>
+    <circle cx="65" cy="52" r="3" fill="#FFB6C1" opacity="0.7"/>
+    <!-- 嘴巴 -->
+    <path d="M 45 55 Q 50 58 55 55" stroke="#333" stroke-width="1" fill="none" stroke-linecap="round"/>
+  </svg>
+</div>
+
+<!-- 浮动小装饰 -->
+<div style="position:fixed;top:200px;right:12px;z-index:0;pointer-events:none;opacity:0.3;font-size:20px;" class="deco-float">🌙</div>
+<div style="position:fixed;top:400px;left:60px;z-index:0;pointer-events:none;opacity:0.25;font-size:16px;" class="deco-drift">✨</div>
+<div style="position:fixed;top:600px;right:16px;z-index:0;pointer-events:none;opacity:0.2;font-size:18px;" class="deco-float">⭐</div>
+<div style="position:fixed;bottom:200px;left:64px;z-index:0;pointer-events:none;opacity:0.25;font-size:14px;" class="deco-drift">💫</div>
 
 <!-- ==================== Lock Screen ==================== -->
 <div id="lock-screen">
@@ -897,8 +1087,27 @@ function renderPage(key) { switchTab(key); }
 function initApp() {
   loadState();
   setupAutoSave();
+  generateStarBg();
   renderNav();
   switchTab('home');
+}
+
+// 生成背景星星
+function generateStarBg() {
+  var bg = document.getElementById('star-bg');
+  if (!bg) return;
+  var stars = ['⭐', '✨', '🌟', '💫', '✦', '✧'];
+  var html = '';
+  for (var i = 0; i < 25; i++) {
+    var x = Math.random() * 100;
+    var y = Math.random() * 100;
+    var size = 8 + Math.random() * 12;
+    var delay = Math.random() * 3;
+    var opacity = 0.15 + Math.random() * 0.25;
+    var star = stars[Math.floor(Math.random() * stars.length)];
+    html += '<div style="position:absolute;left:' + x + '%;top:' + y + '%;font-size:' + size + 'px;opacity:' + opacity + ';animation:twinkle ' + (2 + Math.random() * 2) + 's ease-in-out infinite ' + delay + 's;pointer-events:none;">' + star + '</div>';
+  }
+  bg.innerHTML = html;
 }
 
 // ==================== Home ====================
@@ -937,7 +1146,10 @@ function renderHome(main) {
   var allDone = undoneItems.length === 0;
 
   main.innerHTML =
-    '<div style="text-align:center;padding:8px 0 16px;">' +
+    '<div style="text-align:center;padding:8px 0 16px;position:relative;">' +
+      // 小乌萨奇装饰
+      '<div style="position:absolute;top:0;left:0;font-size:28px;opacity:0.4;animation:float-slow 4s ease-in-out infinite;">🌙</div>' +
+      '<div style="position:absolute;top:4px;right:0;font-size:24px;opacity:0.3;animation:drift 5s ease-in-out infinite;">⭐</div>' +
       '<div id="cosmos" style="width:180px;height:180px;margin:0 auto;"></div>' +
       '<div style="font-size:16px;font-weight:700;color:var(--text);margin-top:8px;">公主的小宇宙 ✨</div>' +
       '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">' + today() + '</div>' +
