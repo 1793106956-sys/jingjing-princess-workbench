@@ -123,6 +123,11 @@ body::before {
   z-index: 1;
 }
 
+/* Safari HTML5 兼容：确保 <main> 为块级元素 */
+main, #main {
+  display: block;
+}
+
 /* ==================== Lock Screen ==================== */
 #lock-screen {
   position: fixed;
@@ -266,7 +271,6 @@ body::before {
 /* ==================== App Layout ==================== */
 #app {
   min-height: 100vh;
-  padding-bottom: 70px;
 }
 
 #header {
@@ -281,7 +285,6 @@ body::before {
   justify-content: space-between;
   border-bottom: 1px solid rgba(255,182,217,0.2);
   margin-left: 56px;
-}
 }
 
 #header-settings {
@@ -1082,22 +1085,11 @@ function renderPage(key) { switchTab(key); }
 
 // ==================== Init App ====================
 function initApp() {
-  try {
-    loadState();
-    setupAutoSave();
-    generateStarBg();
-    renderNav();
-    // 测试：直接写入内容
-    var main = document.getElementById('main');
-    if (!main) {
-      document.body.innerHTML += '<div style="padding:20px;color:red;">错误: main元素不存在</div>';
-      return;
-    }
-    switchTab('home');
-  } catch(e) {
-    document.getElementById('main').innerHTML = '<div style="padding:20px;color:#c00;">初始化出错: ' + esc(e.message) + '<br>请刷新重试</div>';
-    console.error('initApp error:', e);
-  }
+  loadState();
+  setupAutoSave();
+  generateStarBg();
+  renderNav();
+  switchTab('home');
 }
 
 // 生成背景星星
