@@ -1258,30 +1258,27 @@ function loadDailyNews() {
 
   // 尝试多个新闻源（更稳定的源）
   tryFetchNews([
-    // 源1: 百度热搜（更稳定的JSONP风格API）
-    { url: 'https://api.vvhan.com/api/hotlist/baidu?format=json', type: 'json', parse: function(d) {
-      if (!d || !d.data) return null;
-      return d.data.slice(0, 6).map(function(i) { return { title: i.title || i.name, source: '百度' }; });
+    // 源1: 60s 每日要闻（稳定，Cloudflare Workers，支持CORS）
+    { url: 'https://60s.viki.moe/v2/60s?format=json', type: 'json', parse: function(d) {
+      if (!d || !d.data || !d.data.news) return null;
+      return d.data.news.slice(0, 8).map(function(n, i) {
+        return { title: n, source: '要闻' };
+      });
     }},
     // 源2: 微博热搜
-    { url: 'https://api.vvhan.com/api/hotlist/wbHot?format=json', type: 'json', parse: function(d) {
+    { url: 'https://60s.viki.moe/v2/weibo?format=json', type: 'json', parse: function(d) {
       if (!d || !d.data) return null;
-      return d.data.slice(0, 6).map(function(i) { return { title: i.title || i.name, source: '微博' }; });
+      return d.data.slice(0, 8).map(function(i) { return { title: i.title, source: '微博' }; });
     }},
-    // 源3: 抖音热搜
-    { url: 'https://api.vvhan.com/api/hotlist/douyinHot?format=json', type: 'json', parse: function(d) {
+    // 源3: 知乎热榜
+    { url: 'https://60s.viki.moe/v2/zhihu?format=json', type: 'json', parse: function(d) {
       if (!d || !d.data) return null;
-      return d.data.slice(0, 4).map(function(i) { return { title: i.title || i.name, source: '抖音' }; });
+      return d.data.slice(0, 6).map(function(i) { return { title: i.title, source: '知乎' }; });
     }},
-    // 源4: 知乎热榜
-    { url: 'https://api.vvhan.com/api/hotlist/zhihuHot?format=json', type: 'json', parse: function(d) {
+    // 源4: 抖音热搜
+    { url: 'https://60s.viki.moe/v2/douyin?format=json', type: 'json', parse: function(d) {
       if (!d || !d.data) return null;
-      return d.data.slice(0, 4).map(function(i) { return { title: i.title || i.name, source: '知乎' }; });
-    }},
-    // 源5: 十年API微博热搜（备用）
-    { url: 'https://tenapi.cn/v2/weibohot?format=json', type: 'json', parse: function(d) {
-      if (!d || !d.data) return null;
-      return d.data.slice(0, 8).map(function(i) { return { title: i.name || i.title, source: '微博' }; });
+      return d.data.slice(0, 6).map(function(i) { return { title: i.title, source: '抖音' }; });
     }},
   ], 0, el);
 }
@@ -3751,7 +3748,7 @@ function refreshCurrentPage() {
   if (btn) { btn.style.transform = 'rotate(360deg)'; btn.style.transition = 'transform 0.6s'; setTimeout(function(){ btn.style.transform = ''; btn.style.transition = ''; }, 600); }
   
   // 清除新闻缓存，强制重新获取
-  LS.remove('newsCache');
+  LS.del('jj_newsCache');
   
   // 重新渲染当前页
   var tab = currentTab || 'home';
