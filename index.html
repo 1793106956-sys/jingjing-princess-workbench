@@ -1082,11 +1082,16 @@ function renderPage(key) { switchTab(key); }
 
 // ==================== Init App ====================
 function initApp() {
-  loadState();
-  setupAutoSave();
-  generateStarBg();
-  renderNav();
-  switchTab('home');
+  try {
+    loadState();
+    setupAutoSave();
+    generateStarBg();
+    renderNav();
+    switchTab('home');
+  } catch(e) {
+    document.getElementById('main').innerHTML = '<div style="padding:20px;color:#c00;">初始化出错: ' + esc(e.message) + '<br>请刷新重试</div>';
+    console.error('initApp error:', e);
+  }
 }
 
 // 生成背景星星
