@@ -1087,6 +1087,12 @@ function initApp() {
     setupAutoSave();
     generateStarBg();
     renderNav();
+    // 测试：直接写入内容
+    var main = document.getElementById('main');
+    if (!main) {
+      document.body.innerHTML += '<div style="padding:20px;color:red;">错误: main元素不存在</div>';
+      return;
+    }
     switchTab('home');
   } catch(e) {
     document.getElementById('main').innerHTML = '<div style="padding:20px;color:#c00;">初始化出错: ' + esc(e.message) + '<br>请刷新重试</div>';
