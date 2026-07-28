@@ -999,6 +999,16 @@ function getNavConfig() {
     LS.set('jj_navConfig', STATE.navConfig);
     NAV_CONFIG = STATE.navConfig;
   }
+  // 确保所有新模块都包含在 visible 中（兼容旧版本数据）
+  var allKeys = ALL_MODULES.map(function(m) { return m.key; });
+  allKeys.forEach(function(key) {
+    if (STATE.navConfig.visible.indexOf(key) < 0 && STATE.navConfig.more.indexOf(key) < 0) {
+      STATE.navConfig.visible.push(key);
+    }
+  });
+  // 移除已不存在的模块
+  STATE.navConfig.visible = STATE.navConfig.visible.filter(function(k) { return allKeys.indexOf(k) >= 0; });
+  STATE.navConfig.more = STATE.navConfig.more.filter(function(k) { return allKeys.indexOf(k) >= 0; });
   return STATE.navConfig;
 }
 
