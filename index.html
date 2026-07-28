@@ -843,6 +843,7 @@ var NAV_CONFIG = null; // alias for STATE.navConfig, set on init
 
 function loadState() {
   STATE.water = LS.get('jj_water') || {};
+  STATE.waterLogs = LS.get('jj_waterLogs') || {};
   STATE.money = LS.get('jj_money') || [];
   STATE.momMoney = LS.get('jj_momMoney') || [];
   STATE.sport = LS.get('jj_sport') || [];
@@ -870,7 +871,7 @@ function loadState() {
 
 function saveState(key) {
   var map = {
-    water: 'jj_water', money: 'jj_money', momMoney: 'jj_momMoney',
+    water: 'jj_water', waterLogs: 'jj_waterLogs', money: 'jj_money', momMoney: 'jj_momMoney',
     sport: 'jj_sport', bodyData: 'jj_bodyData', plan: 'jj_plan',
     shoppingList: 'jj_shoppingList', longPlans: 'jj_longPlans',
     work: 'jj_work', workNotes: 'jj_workNotes', funds: 'jj_funds',
@@ -1373,6 +1374,7 @@ function renderWater(main) {
       '<div style="font-size:12px;color:var(--text-muted);">每杯300ml · 目标2100ml</div>' +
       '<div style="display:flex;justify-content:center;gap:8px;margin:16px 0;">' + cups.join('') + '</div>' +
       '<div style="font-size:13px;color:' + (todayWater >= 7 ? '#5cb85c' : 'var(--text-muted)') + ';">' + (todayWater >= 7 ? '🎉 公主喝饱啦！' : '还需 ' + (7 - todayWater) + ' 杯') + '</div>' +
+      (STATE.waterLogs && STATE.waterLogs[today()] ? '<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">打卡时间：' + STATE.waterLogs[today()].join(' · ') + '</div>' : '') +
     '</div>' +
     '<div class="card">' +
       '<div class="card-title">📊 本周喝水</div>' +
@@ -1394,6 +1396,10 @@ function renderWater(main) {
       } else {
         STATE.water[today()] = idx + 1;
       }
+      // 记录打卡时间
+      if (!STATE.waterLogs) STATE.waterLogs = {};
+      if (!STATE.waterLogs[today()]) STATE.waterLogs[today()] = [];
+      STATE.waterLogs[today()].push(new Date().toTimeString().slice(0,5));
       saveState('water');
       renderWater(main);
       if (idx + 1 >= 7) toast('🎉 公主喝饱啦！');
@@ -1637,26 +1643,38 @@ function renderSport(main) {
   var monthDays = now.getDate();
   var sportCount = sportDays.length;
   var totalMinutes = sportDays.reduce(function(s, r) { return s + parseInt(r.duration || 0); }, 0);
-  var todayWeekDay = now.getDay(); // 0=Sun, 1=Mon...
-  var todayPlan = WORKOUT_PLANS[(todayWeekDay + 6) % 7]; // Mon=0
+  var totalCal = sportDays.reduce(function(s, r) { return s + parseInt(r.calories || 0); }, 0);
+  var todayCal = STATE.sport.filter(function(s) { return s.date === today(); }).reduce(function(s, r) { return s + parseInt(r.calories || 0); }, 0);
+  var calGoal = 300; // 每日卡路里目标
+  var calPct = Math.min(100, Math.round(todayCal / calGoal * 100));
+  var todayWeekDay = now.getDay();
+  var todayPlan = WORKOUT_PLANS[(todayWeekDay + 6) % 7];
 
   main.innerHTML =
     '<div class="card" style="background:linear-gradient(135deg,var(--purple),var(--purple-deep));color:#fff;text-align:center;">' +
       '<div style="font-size:13px;opacity:0.9;">本月运动</div>' +
       '<div style="font-size:36px;font-weight:800;margin:4px 0;">' + sportCount + ' <span style="font-size:16px;">天</span></div>' +
-      '<div style="font-size:11px;opacity:0.8;">总时长 ' + totalMinutes + ' 分钟</div>' +
+      '<div style="font-size:11px;opacity:0.8;">总时长 ' + totalMinutes + '分钟 · 消耗 ' + totalCal + '千卡</div>' +
+    '</div>' +
+    // 今日卡路里达标
+    '<div class="card" style="background:' + (calPct >= 100 ? 'linear-gradient(135deg,#5CB85C,#3D8B37)' : 'linear-gradient(135deg,#FFF5FA,#FDE8F0)') + ';text-align:center;' + (calPct >= 100 ? 'color:#fff;' : '') + '">' +
+      '<div style="font-size:13px;' + (calPct >= 100 ? 'opacity:0.9;' : '') + '">🔥 今日卡路里</div>' +
+      '<div style="font-size:36px;font-weight:800;margin:4px 0;">' + todayCal + '<span style="font-size:16px;">/' + calGoal + '千卡</span></div>' +
+      '<div class="progress-bar" style="margin-top:4px;"><div class="progress-fill" style="width:' + calPct + '%;background:' + (calPct >= 100 ? '#FFD700' : 'var(--pink)') + ';"></div></div>' +
+      '<div style="font-size:11px;margin-top:4px;' + (calPct >= 100 ? 'opacity:0.9;' : 'color:var(--text-muted);') + '">' + (calPct >= 100 ? '🎉 今日达标！' : '还需 ' + (calGoal - todayCal) + ' 千卡达标') + '</div>' +
     '</div>' +
     '<button class="btn btn-primary" style="width:100%;margin-bottom:16px;" onclick="showSportModal()">➕ 运动打卡</button>' +
 
     // 今日训练计划
     '<div class="card" style="background:linear-gradient(135deg,#FFF5FA,#F5E6F5);">' +
-      '<div class="card-title">📋 今日训练计划 · ' + todayPlan.day + '</div>' +
+      '<div class="card-title">📋 训练计划 · <span id="plan-day-label">' + todayPlan.day + (window._planOffset === 0 ? ' (今天)' : '') + '</span></div>' +
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
-        '<span class="badge" style="background:var(--purple-light);color:var(--purple-deep);font-weight:600;">' + todayPlan.focus + '</span>' +
+        '<span class="badge" id="plan-focus-badge" style="background:var(--purple-light);color:var(--purple-deep);font-weight:600;">' + todayPlan.focus + '</span>' +
       '</div>' +
-      '<div style="font-size:var(--font-sm);color:var(--text);white-space:pre-line;line-height:1.8;background:rgba(255,255,255,0.5);padding:12px;border-radius:12px;">' + todayPlan.exercises + '</div>' +
-      '<div style="display:flex;gap:8px;margin-top:8px;">' +
-        '<button class="btn btn-sm btn-purple" onclick="saveWorkoutPlan()">✅ 完成今日计划</button>' +
+      '<div id="plan-exercises-content" style="font-size:var(--font-sm);color:var(--text);white-space:pre-line;line-height:1.8;background:rgba(255,255,255,0.5);padding:12px;border-radius:12px;">' + todayPlan.exercises + '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
+        '<button class="btn btn-sm btn-purple" id="plan-complete-btn" onclick="saveWorkoutPlan()">✅ 完成今日计划</button>' +
+        '<button class="btn btn-sm btn-outline" id="plan-cancel-btn" onclick="cancelWorkoutPlan()" style="display:none;">↩ 取消完成</button>' +
         '<button class="btn btn-sm btn-outline" onclick="switchPlanDay(-1)">◀ 前一天</button>' +
         '<button class="btn btn-sm btn-outline" onclick="switchPlanDay(1)">后一天 ▶</button>' +
       '</div>' +
@@ -1671,7 +1689,7 @@ function renderSport(main) {
 
     '<div class="card"><div class="card-title">📅 运动日历</div><div id="sport-cal" style="margin-top:8px;"></div></div>' +
     '<div class="card"><div class="card-title">💪 身体数据</div><div id="sport-body" style="margin-top:8px;"></div><button class="btn btn-sm btn-outline" style="margin-top:8px;" onclick="showBodyModal()">记录身体数据</button></div>' +
-    // 乳腺疏通操 & 久坐提醒
+    // 乳腺疏通操
     '<div class="card" style="background:linear-gradient(135deg,#FFF0F5,#FDE8F0);">' +
       '<div class="card-title">🌸 久坐舒通操 · 乳腺保健</div>' +
       '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">久坐党专属 · 办公室即可练习 · 每1小时做一次</div>' +
@@ -1713,38 +1731,47 @@ function switchPlanDay(dir) {
   // 限制范围
   if (window._planOffset < -3) window._planOffset = -3;
   if (window._planOffset > 3) window._planOffset = 3;
-  
+
   var now = new Date();
-  var targetDay = (now.getDay() + window._planOffset + 7) % 7; // 0=Sun
+  var targetDay = (now.getDay() + window._planOffset + 7) % 7;
   var plan = WORKOUT_PLANS[(targetDay + 6) % 7];
-  
-  // 找到计划卡片并更新
-  var cards = document.querySelectorAll('#main .card');
-  cards.forEach(function(card) {
-    var title = card.querySelector('.card-title');
-    if (title && title.textContent.indexOf('今日训练计划') !== -1) {
-      title.textContent = '📋 训练计划 · ' + plan.day + (window._planOffset === 0 ? ' (今天)' : '');
-      var badge = card.querySelector('.badge');
-      if (badge) badge.textContent = plan.focus;
-      var content = card.querySelector('div[style*="white-space:pre-line"]');
-      if (content) content.textContent = plan.exercises;
-    }
-  });
+
+  // 更新计划卡片
+  var label = document.getElementById('plan-day-label');
+  if (label) label.textContent = plan.day + (window._planOffset === 0 ? ' (今天)' : '');
+  var badge = document.getElementById('plan-focus-badge');
+  if (badge) badge.textContent = plan.focus;
+  var content = document.getElementById('plan-exercises-content');
+  if (content) content.textContent = plan.exercises;
 }
 
 function saveWorkoutPlan() {
   var now = new Date();
   var plan = WORKOUT_PLANS[(now.getDay() + 6) % 7];
+  // 检查今天是否已完成此计划
+  var todayDone = STATE.sport.some(function(s) { return s.date === today() && s.note && s.note.indexOf('训练计划') >= 0; });
   STATE.sport.push({
     id: uid(),
     type: plan.focus,
     duration: 30,
+    calories: 150,
     date: today(),
-    note: '完成训练计划：' + plan.day + ' ' + plan.focus,
+    note: '✅ 完成训练计划：' + plan.day + ' ' + plan.focus,
     moves: plan.exercises
   });
   saveState('sport');
-  toast('训练计划完成！💪 已自动打卡');
+  toast('训练计划完成！💪 已自动打卡 +150千卡');
+  renderSport(document.getElementById('main'));
+}
+
+// 取消今日计划完成
+function cancelWorkoutPlan() {
+  if (!confirm('取消今日训练计划的完成记录？')) return;
+  STATE.sport = STATE.sport.filter(function(s) {
+    return !(s.date === today() && s.note && s.note.indexOf('训练计划') >= 0);
+  });
+  saveState('sport');
+  toast('已取消完成记录');
   renderSport(document.getElementById('main'));
 }
 
@@ -1754,8 +1781,12 @@ function showSportModal() {
   overlay.innerHTML =
     '<div class="modal-content" onclick="event.stopPropagation()">' +
       '<div class="card-title">🏃 运动打卡</div>' +
-      '<select id="sport-type" style="margin-top:8px;">' + SPORT_TYPES.map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('') + '</select>' +
+      '<div style="display:flex;gap:4px;align-items:center;margin-top:8px;">' +
+        '<select id="sport-type" style="flex:1;">' + (SPORT_TYPES.concat(LS.get("jj_customSportTypes")||[])).map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('') + '</select>' +
+        '<button class="btn btn-sm btn-outline" style="min-width:32px;min-height:36px;padding:0;font-size:16px;" onclick="addCustomSportType()">+</button>' +
+      '</div>' +
       '<input id="sport-duration" type="number" placeholder="时长（分钟）" style="margin-top:8px;" />' +
+      '<input id="sport-calories" type="number" placeholder="消耗卡路里（千卡）" style="margin-top:8px;" />' +
       '<input id="sport-date" type="date" value="' + today() + '" style="margin-top:8px;" />' +
       '<textarea id="sport-note" placeholder="动作记录（如：深蹲3组x12）" style="margin-top:8px;min-height:60px;resize:vertical;"></textarea>' +
       '<button class="btn btn-primary" style="width:100%;margin-top:12px;" id="sport-save">保存</button>' +
@@ -1766,15 +1797,29 @@ function showSportModal() {
   document.getElementById('sport-save').onclick = function() {
     var type = document.getElementById('sport-type').value;
     var duration = parseInt(document.getElementById('sport-duration').value);
+    var calories = parseInt(document.getElementById('sport-calories').value) || 0;
     var date = document.getElementById('sport-date').value || today();
     var note = document.getElementById('sport-note').value.trim();
     if (!duration || duration <= 0) { toast('请输入时长'); return; }
-    STATE.sport.push({ id: uid(), type: type, duration: duration, date: date, note: note });
+    STATE.sport.push({ id: uid(), type: type, duration: duration, calories: calories, date: date, note: note });
     saveState('sport');
-    toast('运动打卡成功！💪');
+    toast('运动打卡成功！💪 ' + (calories > 0 ? '消耗' + calories + '千卡' : ''));
     overlay.remove();
     renderSport(document.getElementById('main'));
   };
+}
+
+// 添加自定义运动类别
+function addCustomSportType() {
+  var name = prompt("请输入新运动类别（如：瑜伽、跳绳、拳击...）", "");
+  if (!name || !name.trim()) return;
+  var customTypes = LS.get("jj_customSportTypes") || [];
+  if (customTypes.indexOf(name.trim()) >= 0) { toast("类别已存在"); return; }
+  customTypes.push(name.trim());
+  LS.set("jj_customSportTypes", customTypes);
+  var sel = document.getElementById("sport-type");
+  if (sel) { var opt = document.createElement("option"); opt.value = name.trim(); opt.textContent = name.trim(); opt.selected = true; sel.appendChild(opt); }
+  toast("已添加: " + name.trim());
 }
 
 function showBodyModal() {
@@ -1884,7 +1929,7 @@ function renderRecentSport() {
   el.innerHTML = records.map(function(r) {
     return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.04);">' +
       '<span style="font-size:18px;">🏃</span>' +
-      '<div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--text);">' + esc(r.type) + ' · ' + r.duration + '分钟</div><div style="font-size:11px;color:var(--text-muted);">' + r.date + (r.note ? ' · ' + esc(r.note) : '') + '</div></div>' +
+      '<div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--text);">' + esc(r.type) + ' · ' + r.duration + '分钟' + (r.calories ? ' · 🔥' + r.calories + '千卡' : '') + '</div><div style="font-size:11px;color:var(--text-muted);">' + r.date + (r.note ? ' · ' + esc(r.note) : '') + '</div></div>' +
       '<button class="btn btn-sm" style="background:#f44336;color:#fff;padding:2px 8px;min-height:auto;" onclick="deleteSport(\'' + r.id + '\')">删</button>' +
     '</div>';
   }).join('');
@@ -2418,16 +2463,77 @@ function deleteWorkNote(id) {
 // ==================== Fund Module ====================
 function renderFund(main) {
   main.innerHTML =
-    '<div class="card"><div class="card-title">📈 基金看板</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">数据来自天天基金，仅供参考</div></div>' +
+    '<div class="card"><div class="card-title">📈 基金看板</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">数据来自新浪财经，仅供参考</div></div>' +
     // 大盘指数
     '<div class="card"><div class="card-title">📊 今日大盘</div><div id="market-index" style="margin-top:8px;font-size:12px;color:var(--text-muted);">加载中...</div></div>' +
     '<div class="card"><div class="card-title">⭐ 自选基金</div><div id="fund-list" style="margin-top:8px;"></div>' +
     '<div style="display:flex;gap:8px;margin-top:12px;"><input id="fund-add-code" placeholder="基金代码" /><button class="btn btn-sm btn-primary" onclick="addFund()">添加</button></div></div>' +
+    // 财经新闻
+    '<div class="card"><div class="card-title">📰 财经快讯</div><div id="finance-news" style="margin-top:8px;font-size:12px;color:var(--text-muted);">加载中...</div></div>' +
+    // 大佬推荐
+    '<div class="card" style="background:linear-gradient(135deg,#FFF8E1,#FFF3B0);">' +
+      '<div class="card-title">🌟 大佬观点</div>' +
+      '<div style="font-size:12px;color:var(--text);line-height:1.8;margin-top:8px;">' +
+        getFinanceQuotes().map(function(q) {
+          return '<div style="padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.06);">' +
+            '<div style="font-weight:600;color:var(--purple-deep);">' + q.author + '</div>' +
+            '<div style="margin-top:2px;">' + q.quote + '</div>' +
+            '<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">操作建议：' + q.action + '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+    '</div>' +
     '<div class="card"><div class="card-title">💡 推荐策略</div><div style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.6;">基于涨跌幅和热门板块，仅供参考。投资有风险，入市需谨慎。</div>' +
     '<div style="margin-top:8px;"><a href="https://fund.eastmoney.com/" target="_blank" class="btn btn-sm btn-outline">打开天天基金网 →</a></div></div>';
 
   renderWatchFunds();
   loadMarketIndex();
+  loadFinanceNews();
+}
+
+// 财经大佬观点
+function getFinanceQuotes() {
+  var pool = [
+    { author: '巴菲特', quote: '别人贪婪时我恐惧，别人恐惧时我贪婪。', action: '逆向思维，大跌时往往是布局良机' },
+    { author: '彼得·林奇', quote: '不进行研究的投资，就像打扑克从不看牌一样。', action: '研究基本面，不要盲目跟风' },
+    { author: '查理·芒格', quote: '投资最重要的是避免犯错，而不是追求聪明。', action: '控制风险比追求收益更重要' },
+    { author: '霍华德·马克斯', quote: '我们无法预测未来，但可以做好准备。', action: '分散投资，留有安全边际' },
+    { author: '约翰·博格', quote: '时间是投资者的朋友，冲动是投资者的敌人。', action: '长期持有，减少交易频率' },
+    { author: '索罗斯', quote: '重要的不是你对或错，而是你对的时候赚多少，错的时候亏多少。', action: '控制仓位，设好止损' },
+  ];
+  return pool.sort(function() { return Math.random() - 0.5; }).slice(0, 3);
+}
+
+// 加载财经新闻
+function loadFinanceNews() {
+  var el = document.getElementById('finance-news');
+  if (!el) return;
+  var cached = LS.get('jj_financeNews', null);
+  if (cached && (Date.now() - cached.time < 1800000)) {
+    el.innerHTML = cached.data;
+    return;
+  }
+  el.innerHTML = '📡 正在获取财经快讯...';
+
+  // 用60s API获取财经类内容
+  fetch('https://60s.viki.moe/v2/60s?format=json')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d && d.data && d.data.news) {
+        var html = d.data.news.slice(0, 5).map(function(n, i) {
+          return '<div style="padding:5px 0;border-bottom:1px solid rgba(0,0,0,0.03);">' +
+            '<span style="color:var(--pink);font-weight:600;">' + (i+1) + '.</span> ' + esc(n) +
+          '</div>';
+        }).join('');
+        LS.set('jj_financeNews', { data: html, time: Date.now() });
+        el.innerHTML = html;
+      } else {
+        el.innerHTML = '<div style="text-align:center;color:var(--text-muted);">暂无财经快讯</div>';
+      }
+    })
+    .catch(function() {
+      el.innerHTML = '<div style="text-align:center;color:var(--text-muted);">📡 网络不可用，请稍后重试</div>';
+    });
 }
 
 function renderWatchFunds() {
@@ -3307,7 +3413,26 @@ function openBankExam() {
   };
 }
 
-// ==================== Korean Module (from jingjing_modules.js) ====================
+// ==================== Korean Module ====================
+// 韩语模块辅助函数
+function _createModalOverlay() {
+  var o = document.createElement('div');
+  o.className = 'modal-overlay';
+  o.onclick = function(e) { if (e.target === o) o.remove(); };
+  return o;
+}
+function _createModalBox(title) {
+  var m = document.createElement('div');
+  m.className = 'modal-content';
+  m.onclick = function(e) { e.stopPropagation(); };
+  var t = document.createElement('div');
+  t.className = 'card-title'; t.textContent = title;
+  m.appendChild(t);
+  return m;
+}
+function _inputStyle() { return 'width:100%;padding:10px;border:1px solid var(--pink-light);border-radius:8px;font-size:14px;margin-top:8px;'; }
+
+var _koreanCardIndex = 0;
 function renderKorean(main) {
   if (!STATE.korean) {
     STATE.korean = { logs: [], cards: [], quizScore: {} };
@@ -3332,6 +3457,7 @@ function renderKorean(main) {
   _koreanRenderQuizArea(wrap);
   _koreanRenderLogs(wrap);
   _koreanRenderWeekPlan(wrap);
+  _koreanDuolingoCheckin(wrap);
 }
 
 function _koreanPresetCards() {
@@ -3433,8 +3559,6 @@ function _koreanUpdateTabContent(tabBar, contentArea, tab) {
   contentArea.appendChild(grid);
 }
 
-var _koreanCardIndex = 0;
-
 function _koreanRenderCardArea(wrap) {
   var card = document.createElement('div');
   card.className = 'card';
@@ -3516,8 +3640,108 @@ function _koreanRenderActions(wrap) {
   var logBtn = document.createElement('button');
   logBtn.className = 'btn btn-outline'; logBtn.textContent = '📔 记录学习';
   logBtn.onclick = function() { _koreanAddLogModal(); };
-  row.appendChild(addBtn); row.appendChild(quizBtn); row.appendChild(logBtn);
+  var dictBtn = document.createElement('button');
+  dictBtn.className = 'btn btn-outline'; dictBtn.textContent = '📖 我的字典';
+  dictBtn.onclick = function() { _koreanDictModal(); };
+  row.appendChild(addBtn); row.appendChild(quizBtn); row.appendChild(logBtn); row.appendChild(dictBtn);
   wrap.appendChild(row);
+}
+
+// 韩语字典功能
+function _koreanDictModal() {
+  if (!STATE.korean.dict) STATE.korean.dict = [];
+  var overlay = _createModalOverlay();
+  var modal = _createModalBox('📖 我的韩语字典');
+  modal.style.maxHeight = '80vh'; modal.style.overflowY = 'auto';
+
+  // 添加新词
+  var addRow = document.createElement('div');
+  addRow.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;';
+  var wordInput = document.createElement('input');
+  wordInput.placeholder = '韩语单词'; wordInput.style.cssText = 'flex:1;padding:8px;border:1px solid var(--pink-light);border-radius:8px;font-size:13px;';
+  var meaningInput = document.createElement('input');
+  meaningInput.placeholder = '中文意思'; meaningInput.style.cssText = 'flex:1;padding:8px;border:1px solid var(--pink-light);border-radius:8px;font-size:13px;';
+  var addWordBtn = document.createElement('button');
+  addWordBtn.className = 'btn btn-sm btn-primary'; addWordBtn.textContent = '添加';
+  addWordBtn.onclick = function() {
+    var w = wordInput.value.trim(), m = meaningInput.value.trim();
+    if (!w || !m) { toast('请填写单词和意思'); return; }
+    STATE.korean.dict.push({ id: uid(), word: w, meaning: m, date: today() });
+    saveState('korean');
+    toast('已添加 📖');
+    wordInput.value = ''; meaningInput.value = '';
+    overlay.remove(); _koreanDictModal();
+  };
+  addRow.appendChild(wordInput); addRow.appendChild(meaningInput); addRow.appendChild(addWordBtn);
+  modal.appendChild(addRow);
+
+  // 搜索
+  var searchInput = document.createElement('input');
+  searchInput.placeholder = '🔍 搜索单词...'; searchInput.style.cssText = _inputStyle();
+  var dictList = document.createElement('div');
+  dictList.id = 'korean-dict-list';
+
+  function refreshList(filter) {
+    var words = STATE.korean.dict || [];
+    if (filter) words = words.filter(function(d) { return d.word.indexOf(filter) >= 0 || d.meaning.indexOf(filter) >= 0; });
+    words.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    dictList.innerHTML = words.length === 0 ? '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:12px;">' + (filter ? '没有匹配的单词' : '字典还是空的，添加第一个单词吧 📖') + '</div>' :
+      words.map(function(d) {
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:1px solid rgba(0,0,0,0.04);">' +
+          '<div><span style="font-weight:700;color:var(--purple-deep);">' + esc(d.word) + '</span> — <span style="color:var(--text);">' + esc(d.meaning) + '</span></div>' +
+          '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:10px;color:var(--text-muted);">' + (d.date || '') + '</span>' +
+          '<button class="btn btn-sm" style="background:#f44336;color:#fff;padding:1px 6px;min-height:20px;font-size:10px;" onclick="(function(id){STATE.korean.dict=STATE.korean.dict.filter(function(x){return x.id!==id});saveState(\'korean\');this.parentElement.parentElement.remove();})(\'' + d.id + '\')">删</button></div>' +
+        '</div>';
+      }).join('');
+  }
+
+  searchInput.oninput = function() { refreshList(this.value.trim()); };
+  modal.appendChild(searchInput);
+  modal.appendChild(dictList);
+  refreshList();
+
+  overlay.appendChild(modal); document.body.appendChild(overlay);
+}
+
+// 多邻国韩语打卡日表
+function _koreanDuolingoCheckin(wrap) {
+  if (!STATE.korean.duolingo) STATE.korean.duolingo = {};
+  var card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = '<div class="card-title">🟢 多邻国韩语打卡</div><div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">每日打卡记录 · 保持学习连胜 🔥</div>';
+  var grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:4px;';
+
+  var now = new Date();
+  for (var i = 6; i >= 0; i--) {
+    var d = new Date(now); d.setDate(d.getDate() - i);
+    var ds = d.toISOString().split('T')[0];
+    var checked = STATE.korean.duolingo[ds];
+    var dayName = ['日','一','二','三','四','五','六'][d.getDay()];
+    var cell = document.createElement('div');
+    cell.style.cssText = 'text-align:center;padding:6px 2px;background:' + (checked ? '#58CC02' : 'var(--pink-light)') + ';border-radius:8px;cursor:pointer;color:' + (checked ? '#fff' : 'var(--text)') + ';font-size:11px;';
+    cell.innerHTML = '<div style="font-size:10px;">周' + dayName + '</div><div style="font-size:18px;">' + (checked ? '✅' : '○') + '</div><div style="font-size:9px;">' + ds.slice(5) + '</div>';
+    cell.onclick = function() {
+      if (checked) { delete STATE.korean.duolingo[ds]; } else { STATE.korean.duolingo[ds] = true; }
+      saveState('korean');
+      card.remove(); _koreanDuolingoCheckin(wrap);
+    };
+    grid.appendChild(cell);
+  }
+  card.appendChild(grid);
+
+  // 连胜统计
+  var streak = 0;
+  for (var j = 0; j < 365; j++) {
+    var cd = new Date(); cd.setDate(cd.getDate() - j);
+    if (STATE.korean.duolingo[cd.toISOString().split('T')[0]]) streak++; else break;
+  }
+  var streakDiv = document.createElement('div');
+  streakDiv.style.cssText = 'margin-top:8px;font-size:12px;text-align:center;';
+  streakDiv.innerHTML = streak > 0 ? '🔥 连胜 <b style="color:#58CC02;">' + streak + '</b> 天！继续加油！' : '今天还没有打卡哦~';
+  card.appendChild(streakDiv);
+
+  wrap.appendChild(card);
 }
 
 function _koreanAddCardModal() {
@@ -4170,7 +4394,7 @@ function setupAutoSave() {
 // 保存所有STATE数据到localStorage
 function saveAllState() {
   var map = {
-    water: 'jj_water', money: 'jj_money', momMoney: 'jj_momMoney',
+    water: 'jj_water', waterLogs: 'jj_waterLogs', money: 'jj_money', momMoney: 'jj_momMoney',
     sport: 'jj_sport', bodyData: 'jj_bodyData', plan: 'jj_plan',
     shoppingList: 'jj_shoppingList', longPlans: 'jj_longPlans',
     work: 'jj_work', workNotes: 'jj_workNotes', funds: 'jj_funds',
