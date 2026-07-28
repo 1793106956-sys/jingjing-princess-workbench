@@ -2063,6 +2063,8 @@ function renderLongPlans() {
   el.querySelectorAll('[data-id]').forEach(function(div) {
     div.ondblclick = function() { showLongPlanModal(div.dataset.id); };
   });
+}
+
 function togglePlan(id) {
   var p = STATE.plan.find(function(x) { return x.id === id; });
   if (p) { p.done = !p.done; saveState('plan'); renderPlan(document.getElementById('main')); }
@@ -3595,10 +3597,6 @@ function _closetRefreshOutfitHistory() {
 // ==================== Settings Module ====================
 function renderSettings() {
   var main = document.getElementById('main');
-
-// ==================== Settings Module ====================
-function renderSettings() {
-  var main = document.getElementById('main');
   var cfg = getNavConfig();
 
   // Data stats
@@ -4025,8 +4023,6 @@ function initPWA() {
 }
 
 // ==================== Boot ====================
-}
-}
 initLock();
 initPWA();
 </script>
