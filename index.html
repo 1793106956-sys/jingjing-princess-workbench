@@ -3966,53 +3966,72 @@ function showSyncPanel() {
   overlay.className = 'modal-overlay';
   overlay.innerHTML =
     '<div class="modal-content" onclick="event.stopPropagation()" style="max-height:85vh;overflow-y:auto;">' +
-      '<div class="card-title">☁️ 数据同步</div>' +
-      '<div style="font-size:12px;color:var(--text-muted);margin:8px 0 16px;">通过同步码在不同设备间传输数据</div>' +
+      '<div class="card-title">☁️ 数据同步中心</div>' +
 
-      // 生成同步码
-      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:16px;">' +
-        '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📤 生成同步码</div>' +
-        '<div id="sync-code-area" style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">点击下方按钮生成本机数据同步码</div>' +
-        '<button class="btn btn-primary btn-sm" style="width:100%;" id="gen-sync-code">生成同步码</button>' +
+      // 重要提示
+      '<div style="background:#FFF3CD;padding:10px;border-radius:8px;margin:8px 0;font-size:11px;color:#856404;line-height:1.6;">' +
+        '⚠️ <b>重要提醒：</b>iOS主屏幕、微信、Safari的数据<b>相互独立</b>（不同沙盒）。' +
+        '如需跨环境使用，请先在原环境中<b>导出备份</b>，再到新环境中<b>导入恢复</b>。' +
+        '建议定期备份数据以防丢失！' +
       '</div>' +
 
-      // 导出文件
-      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:16px;">' +
-        '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📁 导出备份文件</div>' +
-        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">数据较大时建议用文件方式</div>' +
-        '<button class="btn btn-outline btn-sm" style="width:100%;" onclick="exportBackup()">下载备份JSON文件</button>' +
+      // 快速操作区
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">' +
+        '<button class="btn btn-primary btn-sm" onclick="quickExport()" style="padding:14px 8px;">📤 一键导出<br><span style="font-size:10px;opacity:0.8;">下载备份文件</span></button>' +
+        '<button class="btn btn-purple btn-sm" onclick="quickImport()" style="padding:14px 8px;">📥 一键导入<br><span style="font-size:10px;opacity:0.8;">从文件恢复</span></button>' +
       '</div>' +
 
-      // 导入同步码
-      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:16px;">' +
-        '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📥 从同步码恢复</div>' +
-        '<textarea id="import-sync-code" placeholder="粘贴同步码..." style="width:100%;min-height:80px;font-size:11px;padding:8px;border-radius:8px;border:1px solid var(--pink-light);resize:vertical;font-family:monospace;"></textarea>' +
-        '<button class="btn btn-purple btn-sm" style="width:100%;margin-top:8px;" id="restore-sync-code">从同步码恢复</button>' +
+      // 导出备份
+      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:12px;">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">📤 导出备份（推荐）</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">下载JSON文件，可在其他设备/环境中导入</div>' +
+        '<button class="btn btn-outline btn-sm" style="width:100%;" onclick="exportBackup()">📁 下载备份文件(.json)</button>' +
       '</div>' +
 
-      // 导入文件
-      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:16px;">' +
-        '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📂 从备份文件恢复</div>' +
+      // 导入备份
+      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:12px;">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">📥 导入恢复</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">选择之前导出的备份文件来恢复数据</div>' +
         '<input id="import-file-sync" type="file" accept=".json" style="font-size:12px;width:100%;margin-bottom:8px;" />' +
-        '<button class="btn btn-outline btn-sm" style="width:100%;" id="import-file-btn">恢复备份文件</button>' +
+        '<button class="btn btn-outline btn-sm" style="width:100%;" id="import-file-btn">📥 从文件恢复数据</button>' +
+      '</div>' +
+
+      // 同步码方式（数据量小时使用）
+      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:12px;">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">📋 同步码（小数据适用）</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">适合数据量较小时的快速传输。生成同步码→复制→粘贴到另一个环境</div>' +
+        '<div id="sync-code-area" style="font-size:11px;color:var(--text-muted);margin-bottom:8px;"></div>' +
+        '<button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:6px;" id="gen-sync-code">🔑 生成同步码</button>' +
+        '<textarea id="import-sync-code" placeholder="在此粘贴同步码..." style="width:100%;min-height:60px;font-size:11px;padding:8px;border-radius:8px;border:1px solid var(--pink-light);resize:vertical;font-family:monospace;margin-bottom:6px;"></textarea>' +
+        '<button class="btn btn-purple btn-sm" style="width:100%;" id="restore-sync-code">📥 从同步码恢复</button>' +
+      '</div>' +
+
+      // 分享到微信
+      '<div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:12px;">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">💬 分享到微信</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">复制下方内容发送到微信"文件传输助手"，需要时粘贴回来</div>' +
+        '<button class="btn btn-outline btn-sm" style="width:100%;margin-bottom:6px;" onclick="shareToWechat()">📋 复制数据到剪贴板</button>' +
+        '<div style="font-size:10px;color:var(--text-muted);">提示：数据较大时建议用「导出备份」保存到手机文件，再通过微信发送文件</div>' +
       '</div>' +
 
       // 自动保存状态
-      '<div style="background:var(--bg);padding:12px;border-radius:12px;">' +
-        '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">⚡ 自动保存</div>' +
-        '<div style="font-size:11px;color:var(--text-muted);">所有输入的数据会在300ms后自动保存到本地，无需手动操作。</div>' +
-        '<div id="last-save-time" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>' +
+      '<div style="background:#E8F5E9;padding:12px;border-radius:12px;margin-bottom:12px;">' +
+        '<div style="font-size:13px;font-weight:600;color:#2E7D32;margin-bottom:6px;">⚡ 自动保存状态</div>' +
+        '<div style="font-size:11px;color:#388E3C;">✓ 每30秒自动保存 · 页面关闭时保存 · 支持离线使用</div>' +
+        '<div id="last-save-time" style="font-size:11px;color:#388E3C;margin-top:4px;"></div>' +
       '</div>' +
 
-      '<button class="btn btn-outline" style="width:100%;margin-top:16px;" onclick="this.closest(\'.modal-overlay\').remove()">关闭</button>' +
+      '<button class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="this.closest(\'.modal-overlay\').remove()">关闭</button>' +
     '</div>';
   document.body.appendChild(overlay);
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
   // 更新最后保存时间
-  var lastSave = LS.get('_lastSaveTime', null);
+  var lastSave = localStorage.getItem('jj__lastSaveTime');
   if (lastSave) {
-    document.getElementById('last-save-time').textContent = '上次保存: ' + lastSave;
+    try {
+      document.getElementById('last-save-time').textContent = '上次保存: ' + JSON.parse(lastSave);
+    } catch(e) {}
   }
 
   // 生成同步码
@@ -4020,44 +4039,103 @@ function showSyncPanel() {
     var code = generateSyncCode();
     var area = document.getElementById('sync-code-area');
     if (code) {
-      area.innerHTML = '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">同步码已生成（共' + code.length + '字符），点击复制：</div>' +
-        '<div style="background:#fff;padding:8px;border-radius:8px;font-size:10px;word-break:break-all;max-height:120px;overflow-y:auto;border:1px solid var(--pink-light);font-family:monospace;margin-bottom:8px;" id="sync-code-text">' + esc(code) + '</div>' +
+      area.innerHTML = '<div style="font-size:11px;color:#2E7D32;margin-bottom:4px;">✅ 同步码已生成（' + code.length + '字符）</div>' +
+        '<div style="background:#fff;padding:8px;border-radius:8px;font-size:10px;word-break:break-all;max-height:100px;overflow-y:auto;border:1px solid var(--pink-light);font-family:monospace;margin-bottom:4px;" id="sync-code-text">' + esc(code) + '</div>' +
         '<button class="btn btn-purple btn-sm" style="width:100%;" onclick="copyToClipboard(document.getElementById(\'sync-code-text\').textContent)">📋 复制同步码</button>';
     } else {
-      area.innerHTML = '<div style="font-size:11px;color:#E06060;">数据量太大，请使用「导出备份文件」方式同步</div>';
+      area.innerHTML = '<div style="font-size:11px;color:#E06060;">⚠️ 数据量太大，请使用「导出备份」方式（上方绿色按钮）</div>';
     }
   };
 
   // 从同步码恢复
   document.getElementById('restore-sync-code').onclick = function() {
     var code = document.getElementById('import-sync-code').value.trim();
-    if (!code) { toast('请粘贴同步码'); return; }
-    if (!confirm('导入将覆盖当前数据，确认继续？')) return;
+    if (!code) { toast('请先粘贴同步码'); return; }
+    if (!confirm('⚠️ 导入将覆盖当前所有数据，确认继续？')) return;
     if (restoreFromSyncCode(code)) {
-      toast('恢复成功！正在刷新...');
+      toast('✅ 恢复成功！正在刷新...');
       setTimeout(function() { location.reload(); }, 1500);
     } else {
-      toast('同步码格式错误');
+      toast('❌ 同步码格式错误，请检查');
     }
   };
 
   // 从文件恢复
   document.getElementById('import-file-btn').onclick = function() {
     var fileInput = document.getElementById('import-file-sync');
-    if (!fileInput.files[0]) { toast('请选择备份文件'); return; }
+    if (!fileInput.files[0]) { toast('请先选择备份文件'); return; }
     var file = fileInput.files[0];
     var reader = new FileReader();
     reader.onload = function(e) {
-      if (!confirm('导入将覆盖当前数据，确认继续？')) return;
+      if (!confirm('⚠️ 导入将覆盖当前所有数据，确认继续？')) return;
       if (restoreFromJSON(e.target.result)) {
-        toast('恢复成功！正在刷新...');
+        toast('✅ 恢复成功！正在刷新...');
         setTimeout(function() { location.reload(); }, 1500);
       } else {
-        toast('文件格式错误');
+        toast('❌ 文件格式错误');
       }
     };
     reader.readAsText(file);
   };
+}
+
+// 一键导出
+function quickExport() {
+  exportBackup();
+}
+
+// 一键导入
+function quickImport() {
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.json';
+  inp.onchange = function() {
+    if (!inp.files[0]) return;
+    if (!confirm('⚠️ 导入将覆盖当前所有数据，确认继续？')) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      if (restoreFromJSON(e.target.result)) {
+        toast('✅ 恢复成功！正在刷新...');
+        setTimeout(function() { location.reload(); }, 1500);
+      } else {
+        toast('❌ 文件格式错误');
+      }
+    };
+    reader.readAsText(inp.files[0]);
+  };
+  inp.click();
+}
+
+// 分享到微信：复制数据到剪贴板
+function shareToWechat() {
+  var data = getAllDataJSON();
+  // 尝试用 Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(data).then(function() {
+      toast('✅ 数据已复制到剪贴板！\n📱 打开微信→文件传输助手→粘贴发送\n💡 需要恢复时复制回来粘贴到同步码框');
+    }).catch(function() {
+      fallbackCopyWechat(data);
+    });
+  } else {
+    fallbackCopyWechat(data);
+  }
+}
+
+function fallbackCopyWechat(data) {
+  var ta = document.createElement('textarea');
+  ta.value = data;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast('✅ 数据已复制！📱 打开微信→文件传输助手→粘贴发送');
+  } catch(e) {
+    toast('❌ 复制失败，请用导出备份方式');
+  }
+  document.body.removeChild(ta);
 }
 
 // 监听数据变化，自动保存并记录时间
