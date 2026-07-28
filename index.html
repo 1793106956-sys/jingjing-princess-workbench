@@ -1456,7 +1456,9 @@ function renderMoney(main) {
     '</div>' +
     '<button class="btn btn-primary" style="width:100%;margin-bottom:16px;" onclick="showMoneyModal()">➕ 记一笔</button>' +
     '<div class="card"><div class="card-title">📊 分类统计</div><div id="money-cat" style="margin-top:8px;"></div></div>' +
-    '<div class="card"><div class="card-title">👩 妈妈的钱</div><div style="font-size:24px;font-weight:700;color:var(--purple);">¥' + fmt(momTotal) + '</div><button class="btn btn-sm btn-outline" style="margin-top:8px;" onclick="showMoneyModal(true)">记录妈妈的钱</button></div>' +
+    '<div class="card"><div class="card-title">👩 妈妈的钱</div><div style="font-size:24px;font-weight:700;color:var(--purple);">¥' + fmt(momTotal) + '</div>' +
+      '<div id="mom-money-list" style="margin-top:8px;max-height:200px;overflow-y:auto;"></div>' +
+      '<button class="btn btn-sm btn-outline" style="margin-top:8px;" onclick="showMoneyModal(true)">记录妈妈的钱</button></div>' +
     '<div class="card"><div class="card-title">📋 最近记录</div><div id="money-recent" style="margin-top:8px;"></div></div>' +
     '<div class="card"><div class="card-title">📈 月报</div><div id="money-month" style="margin-top:8px;"></div></div>';
 
@@ -1469,6 +1471,35 @@ function renderMoney(main) {
 
   renderRecentRecords();
   renderMonthSummary();
+  renderMomMoneyList();
+}
+
+// 妈妈的钱明细
+function renderMomMoneyList() {
+  var el = document.getElementById('mom-money-list');
+  if (!el) return;
+  var records = STATE.momMoney.slice().sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+  if (records.length === 0) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;text-align:center;padding:6px 0;">暂无记录</div>';
+    return;
+  }
+  el.innerHTML = records.map(function(r) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(0,0,0,0.03);font-size:12px;">' +
+      '<div style="flex:1;">' +
+        '<span style="color:var(--text);">' + esc(r.note || '妈妈的钱') + '</span>' +
+        '<span style="color:var(--text-muted);margin-left:8px;font-size:10px;">' + (r.date || '') + '</span>' +
+      '</div>' +
+      '<span style="font-weight:600;color:var(--purple-deep);margin-right:8px;">¥' + fmt(r.amount) + '</span>' +
+      '<button class="btn btn-sm" style="background:#f44336;color:#fff;padding:1px 6px;min-height:20px;font-size:10px;" onclick="deleteMomMoney(\'' + r.id + '\')">删</button>' +
+    '</div>';
+  }).join('');
+}
+
+// 删除妈妈的钱记录
+function deleteMomMoney(id) {
+  STATE.momMoney = STATE.momMoney.filter(function(r) { return r.id !== id; });
+  saveState('momMoney');
+  renderMoney(document.getElementById('main'));
 }
 
 function showMoneyModal(isMom) {
