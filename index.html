@@ -1109,6 +1109,7 @@ function generateStarBg() {
 
 // ==================== Home ====================
 function renderHome(main) {
+  try {
   var cfg = getNavConfig();
   var allKeys = cfg.visible.concat(cfg.more);
 
@@ -1185,6 +1186,10 @@ function renderHome(main) {
   remindEl.querySelectorAll('[data-tab]').forEach(function(el) {
     el.onclick = function() { switchTab(el.dataset.tab); };
   });
+  } catch(e) {
+    main.innerHTML = '<div style="padding:20px;color:#c00;">渲染出错: ' + esc(e.message) + '<br>请刷新重试</div>';
+    console.error('renderHome error:', e);
+  }
 }
 
 function drawCosmos(container, undoneItems, total, allDone) {
