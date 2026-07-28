@@ -845,6 +845,8 @@ function loadState() {
   STATE.sport = LS.get('jj_sport') || [];
   STATE.bodyData = LS.get('jj_bodyData') || [];
   STATE.plan = LS.get('jj_plan') || [];
+  STATE.shoppingList = LS.get('jj_shoppingList') || [];
+  STATE.longPlans = LS.get('jj_longPlans') || [];
   STATE.work = LS.get('jj_work') || [];
   STATE.workNotes = LS.get('jj_workNotes') || [];
   STATE.funds = LS.get('jj_funds') || [];
@@ -857,7 +859,6 @@ function loadState() {
   STATE.korean = LS.get('jj_korean') || null;
   STATE.closet = LS.get('jj_closet') || [];
   STATE.dailyOutfit = LS.get('jj_dailyOutfit') || {};
-  STATE.photoHistory = LS.get('jj_photoHistory') || [];
   STATE.navConfig = LS.get('jj_navConfig') || null;
   NAV_CONFIG = STATE.navConfig;
   STATE.password = LS.get('jj_password') || null;
@@ -867,11 +868,12 @@ function saveState(key) {
   var map = {
     water: 'jj_water', money: 'jj_money', momMoney: 'jj_momMoney',
     sport: 'jj_sport', bodyData: 'jj_bodyData', plan: 'jj_plan',
+    shoppingList: 'jj_shoppingList', longPlans: 'jj_longPlans',
     work: 'jj_work', workNotes: 'jj_workNotes', funds: 'jj_funds',
     fundData: 'jj_fundData', study: 'jj_study', love: 'jj_love',
     loveRecords: 'jj_loveRecords', loveStart: 'jj_loveStart',
     bankStudy: 'jj_bankStudy', korean: 'jj_korean', closet: 'jj_closet',
-    dailyOutfit: 'jj_dailyOutfit', photoHistory: 'jj_photoHistory',
+    dailyOutfit: 'jj_dailyOutfit',
     navConfig: 'jj_navConfig'
   };
   if (map[key]) LS.set(map[key], STATE[key]);
@@ -982,15 +984,14 @@ var ALL_MODULES = [
   { key: 'love', label: '恋爱', icon: '💕', render: 'renderLove' },
   { key: 'bank', label: '银从', icon: '🏦', render: 'renderBank' },
   { key: 'korean', label: '韩语', icon: '🇰🇷', render: 'renderKorean' },
-  { key: 'closet', label: '衣橱', icon: '👗', render: 'renderCloset' },
-  { key: 'photo', label: 'P图', icon: '📸', render: 'renderPhoto' }
+  { key: 'closet', label: '衣橱', icon: '👗', render: 'renderCloset' }
 ];
 
 function getNavConfig() {
   if (!STATE.navConfig) {
     STATE.navConfig = {
-      visible: ['home', 'water', 'money', 'sport', 'plan'],
-      more: ['work', 'fund', 'study', 'love', 'bank', 'korean', 'closet', 'photo']
+      visible: ['home', 'water', 'money', 'sport', 'plan', 'work', 'fund', 'study', 'love', 'bank', 'korean', 'closet'],
+      more: []
     };
     LS.set('jj_navConfig', STATE.navConfig);
     NAV_CONFIG = STATE.navConfig;
@@ -1003,8 +1004,8 @@ var currentTab = 'home';
 function renderNav() {
   var cfg = getNavConfig();
   var nav = document.getElementById('sidebar-nav');
-  // Show all visible modules in sidebar (up to 8)
-  var visibleItems = cfg.visible.slice(0, 8);
+  // 显示所有可见模块，侧边栏可滚动
+  var visibleItems = cfg.visible;
   var items = visibleItems.map(function(key) {
     var m = ALL_MODULES.find(function(x) { return x.key === key; });
     if (!m) return '';
@@ -1012,10 +1013,6 @@ function renderNav() {
       '<span class="nav-icon">' + m.icon + '</span>' +
       '<span class="nav-label">' + m.label + '</span></button>';
   }).join('');
-
-  // Add "more" button at bottom
-  items += '<button class="nav-item nav-more" onclick="openMoreSheet()">' +
-    '<span class="nav-icon">✨</span><span class="nav-label">更多</span></button>';
 
   nav.innerHTML = items;
   nav.querySelectorAll('.nav-item[data-tab]').forEach(function(btn) {
@@ -1251,32 +1248,32 @@ function loadDailyNews() {
     return;
   }
 
-  // 尝试多个新闻源
+  // 尝试多个新闻源（更稳定的源）
   tryFetchNews([
-    // 源1: 韩小韩API（60秒更新）
-    { url: 'https://api.vvhan.com/api/hotlist', type: 'json', parse: function(d) {
+    // 源1: 百度热搜（更稳定的JSONP风格API）
+    { url: 'https://api.vvhan.com/api/hotlist/baidu?format=json', type: 'json', parse: function(d) {
       if (!d || !d.data) return null;
-      // 取多个平台的热搜合并
-      var all = [];
-      if (d.data.wbHot) d.data.wbHot.slice(0, 3).forEach(function(i) { all.push({ title: i.title || i.name, source: '微博' }); });
-      if (d.data.douyinHot) d.data.douyinHot.slice(0, 2).forEach(function(i) { all.push({ title: i.title || i.name, source: '抖音' }); });
-      if (d.data.baiduHot) d.data.baiduHot.slice(0, 2).forEach(function(i) { all.push({ title: i.title || i.name, source: '百度' }); });
-      if (d.data.zhihuHot) d.data.zhihuHot.slice(0, 2).forEach(function(i) { all.push({ title: i.title || i.name, source: '知乎' }); });
-      return all.length ? all : null;
+      return d.data.slice(0, 6).map(function(i) { return { title: i.title || i.name, source: '百度' }; });
     }},
-    // 源2: 十年API微博热搜
+    // 源2: 微博热搜
+    { url: 'https://api.vvhan.com/api/hotlist/wbHot?format=json', type: 'json', parse: function(d) {
+      if (!d || !d.data) return null;
+      return d.data.slice(0, 6).map(function(i) { return { title: i.title || i.name, source: '微博' }; });
+    }},
+    // 源3: 抖音热搜
+    { url: 'https://api.vvhan.com/api/hotlist/douyinHot?format=json', type: 'json', parse: function(d) {
+      if (!d || !d.data) return null;
+      return d.data.slice(0, 4).map(function(i) { return { title: i.title || i.name, source: '抖音' }; });
+    }},
+    // 源4: 知乎热榜
+    { url: 'https://api.vvhan.com/api/hotlist/zhihuHot?format=json', type: 'json', parse: function(d) {
+      if (!d || !d.data) return null;
+      return d.data.slice(0, 4).map(function(i) { return { title: i.title || i.name, source: '知乎' }; });
+    }},
+    // 源5: 十年API微博热搜（备用）
     { url: 'https://tenapi.cn/v2/weibohot?format=json', type: 'json', parse: function(d) {
       if (!d || !d.data) return null;
       return d.data.slice(0, 8).map(function(i) { return { title: i.name || i.title, source: '微博' }; });
-    }},
-    // 源3: 60度热搜
-    { url: 'https://60s.viki.moe/?v2=1&encoding=json', type: 'json', parse: function(d) {
-      if (!d || !d.data) return null;
-      var news = d.data;
-      if (Array.isArray(news)) {
-        return news.slice(0, 8).map(function(n) { return typeof n === 'string' ? { title: n, source: '60秒' } : { title: n.title || n.name, source: '60秒' }; });
-      }
-      return null;
     }},
   ], 0, el);
 }
@@ -1462,7 +1459,7 @@ function showMoneyModal(isMom) {
   overlay.innerHTML =
     '<div class="modal-content" onclick="event.stopPropagation()">' +
       '<div class="card-title">' + (isMom ? '👩 记录妈妈的钱' : '💰 记一笔') + '</div>' +
-      (isMom ? '' : '<select id="money-type" style="margin-top:8px;">' + MONEY_TYPES.map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('') + '</select>') +
+      (isMom ? '' : '<div style="display:flex;gap:4px;align-items:center;margin-top:8px;">' + '<select id="money-type" style="flex:1;">' + (MONEY_TYPES.concat(LS.get("jj_customMoneyTypes")||[])).map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('') + '</select><button class="btn btn-sm btn-outline" style="min-width:32px;min-height:36px;padding:0;font-size:16px;" onclick="addCustomType()">+</button></div>') +
       '<input id="money-amount" type="number" placeholder="金额" step="0.01" style="margin-top:8px;" />' +
       '<input id="money-date" type="date" value="' + today() + '" style="margin-top:8px;" />' +
       '<input id="money-note" placeholder="备注" style="margin-top:8px;" />' +
@@ -1494,6 +1491,20 @@ function showMoneyModal(isMom) {
     overlay.remove();
     renderMoney(document.getElementById('main'));
   };
+}
+
+
+// 添加自定义分类
+function addCustomType() {
+  var name = prompt("请输入新分类名称（如：医疗、宠物、数码...）", "");
+  if (!name || !name.trim()) return;
+  var customTypes = LS.get("jj_customMoneyTypes") || [];
+  if (customTypes.indexOf(name.trim()) >= 0) { toast("分类已存在"); return; }
+  customTypes.push(name.trim());
+  LS.set("jj_customMoneyTypes", customTypes);
+  var sel = document.getElementById("money-type");
+  if (sel) { var opt = document.createElement("option"); opt.value = name.trim(); opt.textContent = name.trim(); opt.selected = true; sel.appendChild(opt); }
+  toast("已添加分类: " + name.trim());
 }
 
 function renderMonthSummary() {
@@ -1797,9 +1808,20 @@ function deleteSport(id) {
 }
 
 // ==================== Plan Module ====================
+// 初始化购物清单和长周期待办
+function initPlanExtras() {
+  if (!STATE.shoppingList) STATE.shoppingList = [];
+  if (!STATE.longPlans) STATE.longPlans = [];
+}
+initPlanExtras();
+
 function renderPlan(main) {
   var todayPlans = STATE.plan.filter(function(p) { return p.date === today(); });
   var doneCount = todayPlans.filter(function(p) { return p.done; }).length;
+  var shoppingList = STATE.shoppingList || [];
+  var shoppingDone = shoppingList.filter(function(s) { return s.done; }).length;
+  var longPlans = STATE.longPlans || [];
+  var longDone = longPlans.filter(function(p) { return p.done; }).length;
 
   main.innerHTML =
     '<div class="card" style="background:linear-gradient(135deg,var(--gold),#FFA500);color:#fff;text-align:center;">' +
@@ -1807,58 +1829,232 @@ function renderPlan(main) {
       '<div style="font-size:36px;font-weight:800;margin:4px 0;">' + doneCount + '/' + todayPlans.length + '</div>' +
       '<div style="font-size:11px;opacity:0.8;">' + (todayPlans.length === doneCount && todayPlans.length > 0 ? '🎉 全部完成！' : '继续加油~') + '</div>' +
     '</div>' +
-    '<button class="btn btn-primary" style="width:100%;margin-bottom:16px;" onclick="showPlanModal()">➕ 添加待办</button>' +
+    '<button class="btn btn-primary" style="width:100%;margin-bottom:16px;" onclick="showPlanModal()">➕ 添加今日待办</button>' +
+
+    // 购物清单
+    '<div class="card">' +
+      '<div class="card-title">🛒 购物清单</div>' +
+      '<div style="font-size:var(--font-sm);color:var(--text-muted);margin-bottom:8px;">' + shoppingDone + '/' + shoppingList.length + ' 已购</div>' +
+      '<div id="shopping-list" style="margin-top:4px;"></div>' +
+      '<button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;" onclick="showShoppingModal()">➕ 添加购物项</button>' +
+    '</div>' +
+
+    // 长周期待办
+    '<div class="card">' +
+      '<div class="card-title">📆 待办事项</div>' +
+      '<div style="font-size:var(--font-sm);color:var(--text-muted);margin-bottom:8px;">未来需要做的事 · ' + longDone + '/' + longPlans.length + ' 已完成</div>' +
+      '<div id="long-plans" style="margin-top:4px;"></div>' +
+      '<button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;" onclick="showLongPlanModal()">➕ 添加待办事项</button>' +
+    '</div>' +
+
     '<div class="card"><div class="card-title">📋 今日待办</div><div id="plan-today" style="margin-top:8px;"></div></div>' +
     '<div class="card"><div class="card-title">📅 月历视图</div><div id="plan-cal" style="margin-top:8px;"></div></div>';
 
   renderPlanToday();
   renderPlanCalendar();
+  renderShoppingList();
+  renderLongPlans();
 }
 
-function showPlanModal() {
+// ---- 购物清单 ----
+function showShoppingModal(editId) {
+  var existing = editId ? (STATE.shoppingList || []).find(function(s) { return s.id === editId; }) : null;
   var overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML =
     '<div class="modal-content" onclick="event.stopPropagation()">' +
-      '<div class="card-title">📋 添加待办</div>' +
-      '<input id="plan-cat" placeholder="大类（如：运动）" style="margin-top:8px;" />' +
-      '<input id="plan-sub" placeholder="小类（如：练胸30min）" style="margin-top:8px;" />' +
-      '<input id="plan-date" type="date" value="' + today() + '" style="margin-top:8px;" />' +
-      '<button class="btn btn-primary" style="width:100%;margin-top:12px;" id="plan-save">保存</button>' +
+      '<div class="card-title">🛒 ' + (existing ? '编辑' : '添加') + '购物项</div>' +
+      '<input id="shop-name" placeholder="物品名称" value="' + esc(existing ? existing.name : '') + '" style="margin-top:8px;" />' +
+      '<input id="shop-note" placeholder="备注（如：品牌、数量）" value="' + esc(existing ? (existing.note || '') : '') + '" style="margin-top:8px;" />' +
+      '<input id="shop-cat" placeholder="分类（如：日用品/食品/美妆）" value="' + esc(existing ? (existing.cat || '') : '') + '" style="margin-top:8px;" />' +
+      '<input id="shop-date" type="date" value="' + (existing ? existing.date : today()) + '" style="margin-top:8px;" />' +
+      '<button class="btn btn-primary" style="width:100%;margin-top:12px;" id="shop-save">保存</button>' +
+      (existing ? '<button class="btn btn-outline" style="width:100%;margin-top:4px;color:#f44336;" id="shop-del">删除</button>' : '') +
     '</div>';
   document.body.appendChild(overlay);
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
-  document.getElementById('plan-save').onclick = function() {
-    var cat = document.getElementById('plan-cat').value.trim();
-    var sub = document.getElementById('plan-sub').value.trim();
-    var date = document.getElementById('plan-date').value || today();
-    if (!sub) { toast('请输入内容'); return; }
-    STATE.plan.push({ id: uid(), cat: cat || '日常', sub: sub, date: date, done: false });
-    saveState('plan');
-    toast('待办已添加 📋');
+  document.getElementById('shop-save').onclick = function() {
+    var name = document.getElementById('shop-name').value.trim();
+    if (!name) { toast('请输入物品名称'); return; }
+    if (!STATE.shoppingList) STATE.shoppingList = [];
+    var item = {
+      id: existing ? existing.id : uid(),
+      name: name,
+      note: document.getElementById('shop-note').value.trim(),
+      cat: document.getElementById('shop-cat').value.trim() || '其他',
+      date: document.getElementById('shop-date').value || today(),
+      done: existing ? existing.done : false
+    };
+    if (existing) {
+      STATE.shoppingList = STATE.shoppingList.map(function(s) { return s.id === existing.id ? item : s; });
+    } else {
+      STATE.shoppingList.unshift(item);
+    }
+    saveState('shoppingList');
+    toast('已保存 🛒');
     overlay.remove();
     renderPlan(document.getElementById('main'));
   };
+  if (existing) {
+    document.getElementById('shop-del').onclick = function() {
+      if (!confirm('确定删除？')) return;
+      STATE.shoppingList = STATE.shoppingList.filter(function(s) { return s.id !== existing.id; });
+      saveState('shoppingList');
+      overlay.remove();
+      renderPlan(document.getElementById('main'));
+    };
+  }
 }
 
-function renderPlanToday() {
-  var el = document.getElementById('plan-today');
+function toggleShopping(id) {
+  if (!STATE.shoppingList) STATE.shoppingList = [];
+  STATE.shoppingList = STATE.shoppingList.map(function(s) {
+    if (s.id === id) s.done = !s.done;
+    return s;
+  });
+  saveState('shoppingList');
+  renderPlan(document.getElementById('main'));
+}
+
+function deleteShopping(id) {
+  STATE.shoppingList = (STATE.shoppingList || []).filter(function(s) { return s.id !== id; });
+  saveState('shoppingList');
+  renderPlan(document.getElementById('main'));
+}
+
+function renderShoppingList() {
+  var el = document.getElementById('shopping-list');
   if (!el) return;
-  var plans = STATE.plan.filter(function(p) { return p.date === today(); });
-  if (plans.length === 0) {
-    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:8px 0;">今日暂无待办</div>';
+  var items = STATE.shoppingList || [];
+  if (items.length === 0) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:8px 0;">购物清单为空~ 去逛逛吧 🛍️</div>';
     return;
   }
-  el.innerHTML = plans.map(function(p) {
-    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.04);">' +
-      '<button class="btn btn-sm" style="min-width:32px;min-height:32px;padding:0;background:' + (p.done ? '#5cb85c' : 'var(--pink-light)') + ';color:' + (p.done ? '#fff' : 'var(--text-muted)') + ';border:none;" onclick="togglePlan(\'' + p.id + '\')">' + (p.done ? '✓' : '') + '</button>' +
-      '<div style="flex:1;"><div style="font-size:13px;color:var(--text);' + (p.done ? 'text-decoration:line-through;opacity:0.5;' : '') + '">' + esc(p.sub) + '</div><div style="font-size:11px;color:var(--text-muted);">' + esc(p.cat) + '</div></div>' +
-      '<button class="btn btn-sm" style="background:#f44336;color:#fff;padding:2px 8px;min-height:auto;" onclick="deletePlan(\'' + p.id + '\')">删</button>' +
+  // 未完成的在前
+  items.sort(function(a, b) { return (a.done ? 1 : 0) - (b.done ? 1 : 0); });
+  el.innerHTML = items.map(function(s) {
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.04);' + (s.done ? 'opacity:0.5;' : '') + '" data-id="' + s.id + '">' +
+      '<button class="btn btn-sm" style="min-width:28px;min-height:28px;padding:0;background:' + (s.done ? '#5cb85c' : 'var(--pink-light)') + ';color:' + (s.done ? '#fff' : 'var(--text-muted)') + ';border:none;border-radius:50%;font-size:14px;" onclick="toggleShopping(\'' + s.id + '\')">' + (s.done ? '✓' : '○') + '</button>' +
+      '<div style="flex:1;"><div style="font-size:13px;color:var(--text);' + (s.done ? 'text-decoration:line-through;' : '') + '">' + esc(s.name) + '</div>' +
+        (s.cat ? '<span class="badge" style="font-size:10px;">' + esc(s.cat) + '</span>' : '') +
+        (s.note ? '<span style="font-size:10px;color:var(--text-muted);"> ' + esc(s.note) + '</span>' : '') +
+      '</div>' +
+      '<button class="btn btn-sm" style="background:#f44336;color:#fff;padding:2px 8px;min-height:26px;font-size:11px;" onclick="deleteShopping(\'' + s.id + '\')">删</button>' +
     '</div>';
   }).join('');
+  // 双击编辑
+  el.querySelectorAll('[data-id]').forEach(function(div) {
+    div.ondblclick = function() { showShoppingModal(div.dataset.id); };
+  });
 }
 
+// ---- 长周期待办 ----
+function showLongPlanModal(editId) {
+  var existing = editId ? (STATE.longPlans || []).find(function(p) { return p.id === editId; }) : null;
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML =
+    '<div class="modal-content" onclick="event.stopPropagation()">' +
+      '<div class="card-title">📆 ' + (existing ? '编辑' : '添加') + '待办事项</div>' +
+      '<input id="lp-title" placeholder="事项标题" value="' + esc(existing ? existing.title : '') + '" style="margin-top:8px;" />' +
+      '<input id="lp-desc" placeholder="详细描述（可选）" value="' + esc(existing ? (existing.desc || '') : '') + '" style="margin-top:8px;" />' +
+      '<select id="lp-period" style="margin-top:8px;width:100%;padding:10px;border-radius:12px;border:1px solid var(--pink-light);font-size:14px;">' +
+        '<option value="本周"' + (existing && existing.period === '本周' ? ' selected' : '') + '>本周</option>' +
+        '<option value="本月"' + (existing && existing.period === '本月' ? ' selected' : '') + '>本月</option>' +
+        '<option value="本季"' + (existing && existing.period === '本季' ? ' selected' : '') + '>本季度</option>' +
+        '<option value="本年"' + (existing && existing.period === '本年' ? ' selected' : '') + '>本年度</option>' +
+        '<option value="长期"' + (existing && existing.period === '长期' ? ' selected' : '') + '>长期目标</option>' +
+      '</select>' +
+      '<input id="lp-deadline" type="date" value="' + (existing ? existing.deadline || today() : today()) + '" style="margin-top:8px;" />' +
+      '<button class="btn btn-primary" style="width:100%;margin-top:12px;" id="lp-save">保存</button>' +
+      (existing ? '<button class="btn btn-outline" style="width:100%;margin-top:4px;color:#f44336;" id="lp-del">删除</button>' : '') +
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  document.getElementById('lp-save').onclick = function() {
+    var title = document.getElementById('lp-title').value.trim();
+    if (!title) { toast('请输入事项标题'); return; }
+    if (!STATE.longPlans) STATE.longPlans = [];
+    var item = {
+      id: existing ? existing.id : uid(),
+      title: title,
+      desc: document.getElementById('lp-desc').value.trim(),
+      period: document.getElementById('lp-period').value,
+      deadline: document.getElementById('lp-deadline').value,
+      done: existing ? existing.done : false,
+      createdAt: existing ? existing.createdAt : today()
+    };
+    if (existing) {
+      STATE.longPlans = STATE.longPlans.map(function(p) { return p.id === existing.id ? item : p; });
+    } else {
+      STATE.longPlans.unshift(item);
+    }
+    saveState('longPlans');
+    toast('待办已添加 📆');
+    overlay.remove();
+    renderPlan(document.getElementById('main'));
+  };
+  if (existing) {
+    document.getElementById('lp-del').onclick = function() {
+      if (!confirm('确定删除？')) return;
+      STATE.longPlans = STATE.longPlans.filter(function(p) { return p.id !== existing.id; });
+      saveState('longPlans');
+      overlay.remove();
+      renderPlan(document.getElementById('main'));
+    };
+  }
+}
+
+function toggleLongPlan(id) {
+  if (!STATE.longPlans) STATE.longPlans = [];
+  STATE.longPlans = STATE.longPlans.map(function(p) {
+    if (p.id === id) p.done = !p.done;
+    return p;
+  });
+  saveState('longPlans');
+  renderPlan(document.getElementById('main'));
+}
+
+function deleteLongPlan(id) {
+  STATE.longPlans = (STATE.longPlans || []).filter(function(p) { return p.id !== id; });
+  saveState('longPlans');
+  renderPlan(document.getElementById('main'));
+}
+
+function renderLongPlans() {
+  var el = document.getElementById('long-plans');
+  if (!el) return;
+  var items = STATE.longPlans || [];
+  if (items.length === 0) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:8px 0;">暂无待办事项~ 开始规划吧 📝</div>';
+    return;
+  }
+  // 未完成的在前，按期排列
+  items.sort(function(a, b) {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    var order = { '本周': 0, '本月': 1, '本季': 2, '本年': 3, '长期': 4 };
+    return (order[a.period] || 5) - (order[b.period] || 5);
+  });
+  var periodColors = { '本周': '#E06060', '本月': '#F0A060', '本季': '#6BB5E0', '本年': '#5CB85C', '长期': '#C9A6E2' };
+  el.innerHTML = items.map(function(p) {
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.04);' + (p.done ? 'opacity:0.5;' : '') + '" data-id="' + p.id + '">' +
+      '<button class="btn btn-sm" style="min-width:28px;min-height:28px;padding:0;background:' + (p.done ? '#5cb85c' : 'var(--pink-light)') + ';color:' + (p.done ? '#fff' : 'var(--text-muted)') + ';border:none;border-radius:50%;font-size:14px;" onclick="toggleLongPlan(\'' + p.id + '\')">' + (p.done ? '✓' : '○') + '</button>' +
+      '<div style="flex:1;">' +
+        '<div style="font-size:13px;color:var(--text);' + (p.done ? 'text-decoration:line-through;' : '') + '">' + esc(p.title) + '</div>' +
+        '<div style="display:flex;gap:4px;align-items:center;margin-top:2px;">' +
+          '<span class="badge" style="font-size:10px;background:' + (periodColors[p.period] || '#ddd') + '20;color:' + (periodColors[p.period] || '#888') + ';">' + (p.period || '') + '</span>' +
+          (p.deadline ? '<span style="font-size:10px;color:var(--text-muted);">截止: ' + p.deadline + '</span>' : '') +
+          (p.desc ? '<span style="font-size:10px;color:var(--text-muted);">' + esc(p.desc) + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<button class="btn btn-sm" style="background:#f44336;color:#fff;padding:2px 8px;min-height:26px;font-size:11px;" onclick="deleteLongPlan(\'' + p.id + '\')">删</button>' +
+    '</div>';
+  }).join('');
+  el.querySelectorAll('[data-id]').forEach(function(div) {
+    div.ondblclick = function() { showLongPlanModal(div.dataset.id); };
+  });
 function togglePlan(id) {
   var p = STATE.plan.find(function(x) { return x.id === id; });
   if (p) { p.done = !p.done; saveState('plan'); renderPlan(document.getElementById('main')); }
@@ -3388,250 +3584,9 @@ function _closetRefreshOutfitHistory() {
   });
 }
 
-// ==================== Photo Module ====================
-function renderPhoto(main) {
-  main.innerHTML = '';
-  var wrap = document.createElement('div');
-  wrap.style.cssText = 'display:flex;flex-direction:column;gap:var(--gap);';
-  main.appendChild(wrap);
-  _photoRenderHeader(wrap);
-  _photoRenderUpload(wrap);
-  _photoRenderFilters(wrap);
-  _photoRenderCaptions(wrap);
-  _photoRenderExternalLink(wrap);
-}
-
-function _photoRenderHeader(wrap) {
-  var card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = '<div class="card-title">📸 P图小站</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">公主的P图神器 ✨</div>';
-  wrap.appendChild(card);
-}
-
-function _photoRenderUpload(wrap) {
-  var card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = '<div class="card-title">📷 上传照片</div>';
-  var fileInput = document.createElement('input');
-  fileInput.type = 'file'; fileInput.accept = 'image/*';
-  fileInput.style.cssText = 'font-size:12px;margin-bottom:8px;';
-  var previewWrap = document.createElement('div');
-  previewWrap.id = 'photo-preview-wrap';
-  previewWrap.style.cssText = 'display:none;text-align:center;';
-  var canvas = document.createElement('canvas');
-  canvas.id = 'photo-canvas';
-  canvas.style.cssText = 'max-width:100%;border-radius:var(--radius);box-shadow:0 2px 8px rgba(0,0,0,0.1);';
-  previewWrap.appendChild(canvas);
-  var resetBtn = document.createElement('button');
-  resetBtn.className = 'btn btn-sm btn-outline'; resetBtn.textContent = '重置图片';
-  resetBtn.style.marginTop = '8px';
-  resetBtn.onclick = function() { _photoResetCanvas(); };
-  previewWrap.appendChild(resetBtn);
-  card.appendChild(fileInput); card.appendChild(previewWrap);
-  fileInput.onchange = function() {
-    var file = fileInput.files[0]; if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var img = new Image();
-      img.onload = function() {
-        var c = document.getElementById('photo-canvas');
-        var maxW = 400; var scale = img.width > maxW ? maxW / img.width : 1;
-        c.width = img.width * scale; c.height = img.height * scale;
-        var ctx = c.getContext('2d');
-        ctx.drawImage(img, 0, 0, c.width, c.height);
-        c.dataset.original = ctx.getImageData(0, 0, c.width, c.height).data.toString();
-        previewWrap.style.display = 'block';
-        _photoResetSliders();
-        toast('图片已加载');
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-  wrap.appendChild(card);
-}
-
-function _photoRenderFilters(wrap) {
-  var card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = '<div class="card-title">🎨 滤镜调整</div>';
-  var filters = [
-    { id: 'photo-brightness', label: '🔆 亮度', min: 50, max: 150, val: 100 },
-    { id: 'photo-contrast', label: '◐ 对比度', min: 50, max: 150, val: 100 },
-    { id: 'photo-warmth', label: '🌅 暖色调', min: 0, max: 100, val: 50 }
-  ];
-  filters.forEach(function(f) {
-    var row = document.createElement('div');
-    row.style.cssText = 'margin-bottom:var(--gap);';
-    row.innerHTML = '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>' + f.label + '</span><span id="' + f.id + '-val">' + f.val + '</span></div>';
-    var slider = document.createElement('input');
-    slider.type = 'range'; slider.id = f.id; slider.min = f.min; slider.max = f.max; slider.value = f.val;
-    slider.style.cssText = 'width:100%;accent-color:var(--pink);';
-    var debounced = debounce(function() { _photoApplyFilters(); }, 100);
-    slider.oninput = function() { document.getElementById(f.id + '-val').textContent = slider.value; debounced(); };
-    row.appendChild(slider);
-    card.appendChild(row);
-  });
-  var dlBtn = document.createElement('button');
-  dlBtn.className = 'btn btn-primary'; dlBtn.textContent = '💾 下载图片'; dlBtn.style.width = '100%'; dlBtn.style.marginTop = '8px';
-  dlBtn.onclick = function() { _photoDownload(); };
-  card.appendChild(dlBtn);
-  wrap.appendChild(card);
-}
-
-function _photoResetSliders() {
-  ['photo-brightness', 'photo-contrast', 'photo-warmth'].forEach(function(id) {
-    var el = document.getElementById(id); if (!el) return;
-    var v = id === 'photo-warmth' ? 50 : 100;
-    el.value = v;
-    var valEl = document.getElementById(id + '-val'); if (valEl) valEl.textContent = v;
-  });
-  _photoApplyFilters();
-}
-
-function _photoResetCanvas() {
-  var c = document.getElementById('photo-canvas');
-  if (!c || !c.dataset.original) return;
-  var ctx = c.getContext('2d');
-  var data = c.dataset.original.split(',').map(Number);
-  var imgData = ctx.createImageData(c.width, c.height);
-  for (var i = 0; i < data.length; i++) imgData.data[i] = data[i];
-  ctx.putImageData(imgData, 0, 0);
-  _photoResetSliders();
-  toast('已重置');
-}
-
-function _photoApplyFilters() {
-  var c = document.getElementById('photo-canvas');
-  if (!c || !c.dataset.original) return;
-  var ctx = c.getContext('2d');
-  var brightness = parseInt(document.getElementById('photo-brightness').value) / 100;
-  var contrast = parseInt(document.getElementById('photo-contrast').value) / 100;
-  var warmth = parseInt(document.getElementById('photo-warmth').value) / 50;
-  var orig = c.dataset.original.split(',').map(Number);
-  var imgData = ctx.createImageData(c.width, c.height);
-  var d = imgData.data;
-  for (var i = 0; i < orig.length; i += 4) {
-    var r = orig[i] * brightness, g = orig[i+1] * brightness, b = orig[i+2] * brightness;
-    r = (r - 128) * contrast + 128; g = (g - 128) * contrast + 128; b = (b - 128) * contrast + 128;
-    if (warmth > 1) { r += (warmth - 1) * 30; b -= (warmth - 1) * 30; }
-    else if (warmth < 1) { r -= (1 - warmth) * 30; b += (1 - warmth) * 30; }
-    d[i] = Math.max(0, Math.min(255, r)); d[i+1] = Math.max(0, Math.min(255, g)); d[i+2] = Math.max(0, Math.min(255, b)); d[i+3] = orig[i+3];
-  }
-  ctx.putImageData(imgData, 0, 0);
-}
-
-function _photoDownload() {
-  var c = document.getElementById('photo-canvas');
-  if (!c || !c.dataset.original) { toast('请先上传照片'); return; }
-  var link = document.createElement('a');
-  link.download = 'jingjing_' + Date.now() + '.jpg';
-  link.href = c.toDataURL('image/jpeg', 0.9);
-  link.click();
-  toast('图片已下载 💾');
-}
-
-function _photoCaptions() {
-  return {
-    '风景': ['山川湖海，皆是温柔 🌸','把风景装进眼睛，把美好装进心里 ✨','今天的天空很好看 ☁️','远方有诗，眼前有花 🌷','公主出巡，风景都要让路 👑','每一帧都是壁纸级别的美 📸','世界那么大，我想去看看 🌍'],
-    '美食': ['今日份的快乐已送达 🍰','公主的胃，永远不满足 🤤','生活不止诗和远方，还有火锅和奶茶 🧋','美食当前，减肥明天再说 💕','吃得开心，就是最好的养生 🍓','碳水使人快乐 🧁','被美食治愈的一天 🍜'],
-    '自拍': ['今天状态不错 😘','公主驾到，请让路 👑✨','美颜开到最大，自信拉到满分 💯','今天的我比昨天更可爱 🌸','镜子说：今天你最好看 💃','今日份营业 📸','不是在自拍，是在记录美好 🌟'],
-    '运动': ['流汗的公主最闪耀 💪✨','今天也是努力变美的一天 🏃‍♀️','运动使我快乐 🧘‍♀️','马甲线在路上 🌟','自律即自由 👑','今日运动打卡 💯','汗水是最好的高光 ✨'],
-    '日常': ['平凡日子里的小确幸 🌸','生活明朗，万物可爱 ✨','今天也要元气满满鸭 🦆','公主的日常：吃好喝好 💕','把日子过成诗 🎨','今日份快乐已加载 📦','认真生活的女孩最迷人 🌟']
-  };
-}
-
-function _photoRenderCaptions(wrap) {
-  var card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = '<div class="card-title">💬 朋友圈文案</div>';
-  var tagRow = document.createElement('div');
-  tagRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;';
-  var tags = Object.keys(_photoCaptions());
-  var currentTag = '风景';
-  tags.forEach(function(tag) {
-    var btn = document.createElement('button');
-    btn.className = 'btn btn-sm btn-outline'; btn.textContent = tag; btn.dataset.tag = tag;
-    btn.onclick = function() {
-      currentTag = tag;
-      tagRow.querySelectorAll('button').forEach(function(b) { b.className = b.dataset.tag === tag ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline'; });
-      _photoUpdateCaptionList(listArea, tag);
-    };
-    tagRow.appendChild(btn);
-  });
-  card.appendChild(tagRow);
-  var listArea = document.createElement('div');
-  listArea.id = 'photo-caption-list';
-  card.appendChild(listArea);
-  wrap.appendChild(card);
-  tagRow.querySelector('button').className = 'btn btn-sm btn-primary';
-  _photoUpdateCaptionList(listArea, currentTag);
-}
-
-function _photoUpdateCaptionList(listArea, tag) {
-  if (!listArea) return;
-  listArea.innerHTML = '';
-  _photoCaptions()[tag].forEach(function(text) {
-    var item = document.createElement('div');
-    item.style.cssText = 'background:var(--pink-light);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;';
-    var textEl = document.createElement('div');
-    textEl.style.cssText = 'font-size:13px;flex:1;'; textEl.textContent = text;
-    var copyBtn = document.createElement('button');
-    copyBtn.className = 'btn btn-sm btn-purple'; copyBtn.textContent = '复制';
-    copyBtn.style.cssText = 'flex-shrink:0;padding:4px 12px;font-size:11px;';
-    copyBtn.onclick = function() {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function() { toast('已复制 ✨'); }).catch(function() { _photoFallbackCopy(text); });
-      } else { _photoFallbackCopy(text); }
-      if (!STATE.photoHistory) STATE.photoHistory = [];
-      if (STATE.photoHistory.indexOf(text) === -1) { STATE.photoHistory.unshift(text); if (STATE.photoHistory.length > 30) STATE.photoHistory.pop(); saveState('photoHistory'); }
-    };
-    item.appendChild(textEl); item.appendChild(copyBtn);
-    listArea.appendChild(item);
-  });
-}
-
-function _photoFallbackCopy(text) {
-  var ta = document.createElement('textarea');
-  ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;';
-  document.body.appendChild(ta); ta.select();
-  try { document.execCommand('copy'); toast('已复制 ✨'); } catch(e) { toast('复制失败'); }
-  document.body.removeChild(ta);
-}
-
-function _photoRenderExternalLink(wrap) {
-  var card = document.createElement('div');
-  card.className = 'card'; card.style.textAlign = 'center';
-  card.innerHTML = '<div style="font-size:13px;margin-bottom:8px;">需要更多P图功能？</div>';
-  var linkBtn = document.createElement('button');
-  linkBtn.className = 'btn btn-purple'; linkBtn.textContent = '🎨 打开美图秀秀网页版'; linkBtn.style.width = '100%';
-  linkBtn.onclick = function() { window.open('https://www.meitu.com/editor/', '_blank'); };
-  card.appendChild(linkBtn);
-  wrap.appendChild(card);
-}
-
-// ==================== Modal Helpers ====================
-function _createModalOverlay() {
-  var overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-  return overlay;
-}
-
-function _createModalBox(title) {
-  var modal = document.createElement('div');
-  modal.className = 'modal-content';
-  if (title) {
-    var t = document.createElement('div');
-    t.className = 'card-title'; t.style.marginBottom = 'var(--gap)';
-    t.textContent = title; modal.appendChild(t);
-  }
-  return modal;
-}
-
-function _inputStyle() {
-  return 'width:100%;padding:10px 12px;border:1px solid #e0d0e0;border-radius:var(--radius);font-size:14px;color:var(--text);background:#fff;box-sizing:border-box;margin-bottom:8px;outline:none;';
-}
+// ==================== Settings Module ====================
+function renderSettings() {
+  var main = document.getElementById('main');
 
 // ==================== Settings Module ====================
 function renderSettings() {
@@ -3651,7 +3606,6 @@ function renderSettings() {
     { name: '银从', count: STATE.bankStudy ? (STATE.bankStudy.wrongBook.length + STATE.bankStudy.logs.length) : 0 },
     { name: '韩语', count: STATE.korean ? STATE.korean.logs.length : 0 },
     { name: '衣橱', count: STATE.closet.length },
-    { name: 'P图', count: STATE.photoHistory.length }
   ];
 
   var statsHtml = stats.map(function(s) {
@@ -4063,6 +4017,8 @@ function initPWA() {
 }
 
 // ==================== Boot ====================
+}
+}
 initLock();
 initPWA();
 </script>
