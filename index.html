@@ -2476,45 +2476,55 @@ function removeFund(code) {
 function loadMarketIndex() {
   var el = document.getElementById('market-index');
   if (!el) return;
-  // 缓存1小时
+  // 缓存10分钟（交易时段更新频繁）
   var cached = LS.get('jj_marketIndex', null);
-  if (cached && (Date.now() - cached.time < 3600000)) {
+  if (cached && (Date.now() - cached.time < 600000)) {
     renderMarketIndex(el, cached.data);
     return;
   }
 
   el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">📡 正在获取大盘数据...</div>';
 
-  // 用天天基金的大盘数据API
+  // 用新浪财经JSONP接口（不需要CORS，script标签即可跨域）
   var codes = [
-    { code: '1.000001', name: '上证指数', key: 'sh' },
-    { code: '0.399001', name: '深证成指', key: 'sz' },
-    { code: '0.399006', name: '创业板指', key: 'cy' },
-    { code: '1.000688', name: '科创50', key: 'kc' },
+    { sid: 'sh000001', name: '上证指数', key: 'sh' },
+    { sid: 'sz399001', name: '深证成指', key: 'sz' },
+    { sid: 'sz399006', name: '创业板指', key: 'cy' },
+    { sid: 'sh000688', name: '科创50', key: 'kc' },
   ];
 
-  var results = {};
-  var done = 0;
-  codes.forEach(function(item) {
-    var script = document.createElement('script');
-    var cbName = 'mktIdxCb_' + item.key;
-    window[cbName] = function(data) {
-      if (data) {
-        results[item.key] = { name: item.name, price: data.dwjz || '--', change: data.jzzzl || '--' };
+  var script = document.createElement('script');
+  var cbName = '_mktIdxCb';
+  window[cbName] = function() {
+    // 全局变量 hq_str_sh000001, hq_str_sz399001 等已被设置
+    var results = [];
+    codes.forEach(function(c) {
+      var raw = window['hq_str_' + c.sid];
+      if (raw && typeof raw === 'string') {
+        var parts = raw.split(',');
+        // 格式: 名称,今开,昨收,当前价,最高,最低,...
+        var price = parts[3] || '--';
+        var prevClose = parseFloat(parts[2]) || 0;
+        var curPrice = parseFloat(price) || 0;
+        var change = prevClose ? ((curPrice - prevClose) / prevClose * 100).toFixed(2) : '--';
+        results.push({ name: c.name, price: price, change: change });
+      } else {
+        results.push({ name: c.name, price: '--', change: '--' });
       }
-      done++;
-      if (done >= codes.length) {
-        var all = codes.map(function(c) { return results[c.key] || { name: c.name, price: '--', change: '--' }; });
-        LS.set('jj_marketIndex', { data: all, time: Date.now() });
-        renderMarketIndex(el, all);
-      }
-      if (script.parentNode) script.parentNode.removeChild(script);
-      delete window[cbName];
-    };
-    script.src = 'https://fundgz.1234567.com.cn/js/' + item.code + '.js?rt=' + Date.now();
-    script.onerror = function() { done++; if (done >= codes.length) { var all = codes.map(function(c) { return results[c.key] || { name: c.name, price: '--', change: '--' }; }); renderMarketIndex(el, all); } };
-    document.body.appendChild(script);
-  });
+    });
+    LS.set('jj_marketIndex', { data: results, time: Date.now() });
+    renderMarketIndex(el, results);
+    if (script.parentNode) script.parentNode.removeChild(script);
+    delete window[cbName];
+  };
+
+  script.src = 'https://hq.sinajs.cn/list=' + codes.map(function(c) { return c.sid; }).join(',') + '&_=' + Date.now();
+  script.onerror = function() {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">📡 大盘数据获取失败<br><span style="font-size:11px;">请检查网络后刷新重试</span></div>';
+    if (script.parentNode) script.parentNode.removeChild(script);
+    delete window[cbName];
+  };
+  document.body.appendChild(script);
 }
 
 function renderMarketIndex(el, data) {
@@ -3719,11 +3729,12 @@ function renderSettings() {
     { name: '计划', count: STATE.plan.length },
     { name: '工作', count: STATE.work.length },
     { name: '基金', count: STATE.funds.length },
-    { name: '学习', count: STATE.study.length },
+    { name: '习惯', count: (STATE.habits || []).length },
     { name: '恋爱', count: STATE.loveRecords.length },
-    { name: '银从', count: STATE.bankStudy ? (STATE.bankStudy.wrongBook.length + STATE.bankStudy.logs.length) : 0 },
-    { name: '韩语', count: STATE.korean ? STATE.korean.logs.length : 0 },
-    { name: '学习', count: STATE.study ? STATE.study.length : 0 },
+    { name: '银从', count: STATE.bankStudy ? (STATE.bankStudy.wrongBook.length + (STATE.bankStudy.logs ? STATE.bankStudy.logs.length : 0)) : 0 },
+    { name: '韩语', count: STATE.korean ? (STATE.korean.logs ? STATE.korean.logs.length : 0) : 0 },
+    { name: 'CPA', count: STATE.cpaStudy ? (STATE.cpaStudy.logs ? STATE.cpaStudy.logs.length : 0) : 0 },
+    { name: '妈妈的钱', count: STATE.momMoney.length },
   ];
 
   var statsHtml = stats.map(function(s) {
@@ -3880,15 +3891,7 @@ var autoSaveTimer = null;
 function autoSaveData() {
   if (autoSaveTimer) clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(function() {
-    // 遍历 STATE 的所有键，保存到 localStorage
-    Object.keys(STATE).forEach(function(key) {
-      if (key === 'password' || key === 'navConfig') return;
-      try {
-        LS.set('jj_' + key, STATE[key]);
-      } catch(e) {
-        console.warn('保存失败:', key, e);
-      }
-    });
+    saveAllState();
   }, 300);
 }
 
