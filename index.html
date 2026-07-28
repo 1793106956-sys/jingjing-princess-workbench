@@ -862,6 +862,7 @@ function loadState() {
   STATE.korean = LS.get('jj_korean') || null;
   STATE.dailyOutfit = LS.get('jj_dailyOutfit') || {};
   STATE.cpaStudy = LS.get('jj_cpaStudy') || null;
+  STATE.wikiCache = LS.get('jj_wikiCache') || null;
   STATE.navConfig = LS.get('jj_navConfig') || null;
   NAV_CONFIG = STATE.navConfig;
   STATE.password = LS.get('jj_password') || null;
@@ -877,6 +878,7 @@ function saveState(key) {
     loveRecords: 'jj_loveRecords', loveStart: 'jj_loveStart',
     bankStudy: 'jj_bankStudy', korean: 'jj_korean',
     dailyOutfit: 'jj_dailyOutfit', cpaStudy: 'jj_cpaStudy',
+    wikiCache: 'jj_wikiCache',
     navConfig: 'jj_navConfig'
   };
   if (map[key]) LS.set(map[key], STATE[key]);
@@ -987,13 +989,14 @@ var ALL_MODULES = [
   { key: 'love', label: '恋爱', icon: '💕', render: 'renderLove' },
   { key: 'bank', label: '银从', icon: '🏦', render: 'renderBank' },
   { key: 'korean', label: '韩语', icon: '🇰🇷', render: 'renderKorean' },
-  { key: 'cpa', label: 'CPA', icon: '📝', render: 'renderCPA' }
+  { key: 'cpa', label: 'CPA', icon: '📝', render: 'renderCPA' },
+  { key: 'wiki', label: '百科', icon: '📖', render: 'renderWiki' }
 ];
 
 function getNavConfig() {
   if (!STATE.navConfig) {
     STATE.navConfig = {
-      visible: ['home', 'water', 'money', 'sport', 'plan', 'work', 'fund', 'habit', 'love', 'bank', 'korean', 'cpa'],
+      visible: ['home', 'water', 'money', 'sport', 'plan', 'work', 'fund', 'habit', 'love', 'bank', 'korean', 'cpa', 'wiki'],
       more: []
     };
     LS.set('jj_navConfig', STATE.navConfig);
@@ -1963,6 +1966,73 @@ function renderPlan(main) {
   renderPlanCalendar();
   renderShoppingList();
   renderLongPlans();
+}
+
+// 添加今日待办
+function showPlanModal() {
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML =
+    '<div class="modal-content" onclick="event.stopPropagation()">' +
+      '<div class="card-title">📋 添加待办</div>' +
+      '<input id="plan-title" placeholder="待办内容" style="margin-top:8px;" />' +
+      '<input id="plan-date" type="date" value="' + today() + '" style="margin-top:8px;" />' +
+      '<div style="display:flex;gap:8px;margin-top:8px;">' +
+        '<select id="plan-cat" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--pink-light);">' +
+          '<option value="生活">生活</option><option value="工作">工作</option><option value="学习">学习</option><option value="健康">健康</option><option value="社交">社交</option><option value="其他">其他</option>' +
+        '</select>' +
+        '<select id="plan-priority" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--pink-light);">' +
+          '<option value="normal">普通</option><option value="high">重要</option><option value="urgent">紧急</option>' +
+        '</select>' +
+      '</div>' +
+      '<button class="btn btn-primary" style="width:100%;margin-top:12px;" id="plan-save">添加待办</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  document.getElementById('plan-save').onclick = function() {
+    var title = document.getElementById('plan-title').value.trim();
+    var date = document.getElementById('plan-date').value || today();
+    var cat = document.getElementById('plan-cat').value;
+    var priority = document.getElementById('plan-priority').value;
+    if (!title) { toast('请输入待办内容'); return; }
+    STATE.plan.push({ id: uid(), title: title, date: date, done: false, cat: cat, priority: priority });
+    saveState('plan');
+    toast('待办已添加 📋');
+    overlay.remove();
+    renderPlan(document.getElementById('main'));
+  };
+}
+
+// 渲染今日待办列表
+function renderPlanToday() {
+  var el = document.getElementById('plan-today');
+  if (!el) return;
+  var todayPlans = STATE.plan.filter(function(p) { return p.date === today(); });
+  if (todayPlans.length === 0) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:12px 0;">✨ 今天还没有待办，点击上方按钮添加吧</div>';
+    return;
+  }
+  // 未完成在前，紧急>重要>普通
+  var order = { 'urgent': 0, 'high': 1, 'normal': 2 };
+  todayPlans.sort(function(a, b) {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return (order[a.priority] || 9) - (order[b.priority] || 9);
+  });
+  var priorityColors = { 'urgent': '#f44336', 'high': '#F0A060', 'normal': '#888' };
+  el.innerHTML = todayPlans.map(function(p) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.04);' + (p.done ? 'opacity:0.5;' : '') + '">' +
+      '<button onclick="togglePlan(\'' + p.id + '\')" style="min-width:32px;min-height:32px;border:none;border-radius:50%;font-size:16px;cursor:pointer;' + (p.done ? 'background:#5CB85C;color:#fff;' : 'background:var(--pink-light);color:var(--text-muted);') + '">' + (p.done ? '✓' : '○') + '</button>' +
+      '<div style="flex:1;">' +
+        '<div style="font-size:13px;font-weight:600;color:var(--text);' + (p.done ? 'text-decoration:line-through;' : '') + '">' + esc(p.title || p.content) + '</div>' +
+        '<div style="display:flex;gap:6px;align-items:center;margin-top:2px;">' +
+          (p.cat ? '<span style="font-size:10px;color:var(--text-muted);">#' + esc(p.cat) + '</span>' : '') +
+          (p.priority && p.priority !== 'normal' ? '<span style="font-size:10px;font-weight:600;color:' + (priorityColors[p.priority] || '#888') + ';">' + (p.priority === 'urgent' ? '🔴紧急' : '🟠重要') + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<button class="btn btn-sm" style="background:#f44336;color:#fff;padding:2px 8px;min-height:auto;" onclick="deletePlan(\'' + p.id + '\')">删</button>' +
+    '</div>';
+  }).join('');
 }
 
 // ---- 购物清单 ----
@@ -3996,6 +4066,7 @@ function saveAllState() {
     loveRecords: 'jj_loveRecords', loveStart: 'jj_loveStart',
     bankStudy: 'jj_bankStudy', korean: 'jj_korean',
     dailyOutfit: 'jj_dailyOutfit', cpaStudy: 'jj_cpaStudy',
+    wikiCache: 'jj_wikiCache',
     navConfig: 'jj_navConfig'
   };
   for (var key in map) {
@@ -4245,6 +4316,182 @@ function deleteCPALog(id) {
   STATE.cpaStudy.logs = STATE.cpaStudy.logs.filter(function(l) { return l.id !== id; });
   saveState('cpaStudy');
   renderCPA(document.getElementById('main'));
+}
+
+// ==================== Wiki Module (百科大全) ====================
+var WIKI_CATEGORIES = [
+  { key: 'health', name: '健康养生', icon: '💊', query: '健康养生小知识', desc: '每日健康贴士、养生常识' },
+  { key: 'science', name: '科学冷知识', icon: '🔬', query: '有趣的科学冷知识', desc: '你不知道的科学事实' },
+  { key: 'history', name: '历史今日', icon: '📜', query: '历史上的今天', desc: '历史上今天发生的大事' },
+  { key: 'life', name: '生活妙招', icon: '🏠', query: '实用生活小妙招', desc: '让生活更便捷的技巧' },
+  { key: 'psychology', name: '心理学', icon: '🧠', query: '有趣的心理学效应', desc: '了解自己和他人' },
+  { key: 'food', name: '美食营养', icon: '🍎', query: '食物营养搭配知识', desc: '吃出健康好气色' },
+  { key: 'finance', name: '财经知识', icon: '💹', query: '理财投资小知识', desc: '小白也能懂的理财' },
+  { key: 'tech', name: '科技前沿', icon: '🚀', query: '最新科技资讯', desc: '改变世界的技术' },
+];
+
+function renderWiki(main) {
+  main.innerHTML =
+    '<div class="card" style="background:linear-gradient(135deg,#6C5CE7,#A29BFE);color:#fff;text-align:center;">' +
+      '<div style="font-size:13px;opacity:0.9;">📖 百科大全</div>' +
+      '<div style="font-size:28px;font-weight:800;margin:4px 0;">每天学点新知识</div>' +
+      '<div style="font-size:11px;opacity:0.8;">精选百科 · 开阔视野 · 终身学习</div>' +
+    '</div>' +
+    // 分类选择
+    '<div class="card"><div class="card-title">📂 选择分类</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;" id="wiki-categories"></div>' +
+    '</div>' +
+    // 内容区
+    '<div class="card"><div class="card-title" id="wiki-result-title">💡 知识卡片</div>' +
+      '<div id="wiki-result" style="margin-top:8px;font-size:12px;color:var(--text-muted);">' +
+        '<div style="text-align:center;padding:20px 0;">👆 点击上方分类，获取今日知识</div>' +
+      '</div>' +
+    '</div>' +
+    // 每日推荐
+    '<div class="card"><div class="card-title">🌟 今日推荐</div>' +
+      '<div id="wiki-daily" style="margin-top:8px;font-size:12px;color:var(--text);line-height:1.8;"></div>' +
+      '<button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;" onclick="loadWikiDaily()">🔄 换一批</button>' +
+    '</div>';
+
+  renderWikiCategories();
+  loadWikiDaily();
+}
+
+function renderWikiCategories() {
+  var el = document.getElementById('wiki-categories');
+  if (!el) return;
+  el.innerHTML = WIKI_CATEGORIES.map(function(c, i) {
+    return '<button class="btn btn-sm" style="background:var(--pink-light);color:var(--text);" onclick="loadWikiKnowledge(' + i + ')">' + c.icon + ' ' + c.name + '</button>';
+  }).join('');
+}
+
+function loadWikiKnowledge(idx) {
+  var cat = WIKI_CATEGORIES[idx];
+  if (!cat) return;
+  var resultEl = document.getElementById('wiki-result');
+  var titleEl = document.getElementById('wiki-result-title');
+  if (titleEl) titleEl.textContent = cat.icon + ' ' + cat.name;
+  if (resultEl) resultEl.innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--text-muted);">🔍 正在搜索「' + cat.query + '」...</div>';
+
+  // 用60s.viki.moe的API或者新闻API获取知识类内容
+  // 尝试多个知识类API
+  tryFetchWikiContent(cat, resultEl, 0);
+}
+
+function tryFetchWikiContent(cat, resultEl, attempt) {
+  var apis = [
+    // 用每日60s的tip字段获取每日小知识
+    { url: 'https://60s.viki.moe/v2/60s?format=json', parse: function(d) {
+      if (!d || !d.data) return null;
+      return { title: '📅 ' + d.data.date + ' · 每日金句', content: d.data.tip || '暂无今日金句', source: '每日60s' };
+    }},
+    // 备用：随机知识
+    null
+  ];
+
+  if (attempt >= apis.length) {
+    // 所有API都失败，显示预设知识
+    var presets = getPresetKnowledge(cat.key);
+    if (presets && presets.length) {
+      var pick = presets[Math.floor(Math.random() * presets.length)];
+      resultEl.innerHTML = renderWikiCard(pick.title, pick.content, '本地知识库');
+    } else {
+      resultEl.innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--text-muted);">📡 网络连接失败，请稍后重试<br><span style="font-size:11px;">已缓存离线知识可供浏览</span></div>';
+    }
+    return;
+  }
+
+  var api = apis[attempt];
+  if (!api) { tryFetchWikiContent(cat, resultEl, attempt + 1); return; }
+
+  var timeout = setTimeout(function() { tryFetchWikiContent(cat, resultEl, attempt + 1); }, 5000);
+  fetch(api.url)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      clearTimeout(timeout);
+      var parsed = api.parse(d);
+      if (parsed) {
+        resultEl.innerHTML = renderWikiCard(parsed.title, parsed.content, parsed.source);
+      } else {
+        tryFetchWikiContent(cat, resultEl, attempt + 1);
+      }
+    })
+    .catch(function() {
+      clearTimeout(timeout);
+      tryFetchWikiContent(cat, resultEl, attempt + 1);
+    });
+}
+
+function renderWikiCard(title, content, source) {
+  return '<div style="background:var(--bg);padding:14px;border-radius:12px;border:1px solid rgba(108,92,231,0.15);">' +
+    '<div style="font-weight:700;font-size:14px;color:var(--purple-deep);margin-bottom:8px;">' + esc(title) + '</div>' +
+    '<div style="font-size:13px;color:var(--text);line-height:1.8;">' + esc(content) + '</div>' +
+    '<div style="font-size:10px;color:var(--text-muted);margin-top:8px;">来源：' + esc(source) + '</div>' +
+  '</div>';
+}
+
+// 预设知识库（离线备用）
+function getPresetKnowledge(catKey) {
+  var all = {
+    health: [
+      { title: '💧 每天喝多少水最健康？', content: '成年人每天建议饮水1500-2000ml（约8杯水）。早晨起床空腹喝一杯温水可促进新陈代谢，运动前后需额外补水。注意：不要等渴了再喝，少量多次效果最佳。' },
+      { title: '😴 最佳睡眠时间', content: '成年人每晚需要7-9小时睡眠。晚上10:00-11:00入睡最为理想，此时身体分泌褪黑素高峰。睡前1小时避免看手机，可泡脚、听轻音乐帮助入睡。' },
+      { title: '🧘 久坐危害及对策', content: '连续久坐超过90分钟会显著增加心血管疾病风险。建议每45-60分钟起身活动5分钟，做简单拉伸。站立办公可消耗额外30%热量。' },
+    ],
+    science: [
+      { title: '🌍 地球的"呼吸"', content: '地球每年通过光合作用吸收约1230亿吨二氧化碳，相当于人类排放量的约30%。海洋中的浮游植物贡献了地球50%以上的氧气。' },
+      { title: '🧬 DNA的长度', content: '人体每个细胞中的DNA展开后约2米长，而人体约有37万亿个细胞。如果将所有DNA首尾相连，可以从地球往返太阳约600次！' },
+      { title: '⚡ 闪电的温度', content: '一道闪电的温度可达30000°C，是太阳表面温度的5倍！闪电击中地面时，周围的空气会瞬间膨胀，产生我们听到的雷声。' },
+    ],
+    history: [
+      { title: '📅 历史上的今天', content: '每天都有不平凡的历史事件发生。打开「历史上的今天」网站，了解今天在历史上发生过哪些重大事件。知识让每一天都更有意义。' },
+    ],
+    life: [
+      { title: '👚 衣物护理妙招', content: '白衣服发黄：用淘米水+柠檬汁浸泡2小时再洗。毛巾变硬：白醋+小苏打浸泡30分钟。新鞋磨脚：用吹风机热风吹磨脚处30秒，穿上厚袜子走动至冷却。' },
+      { title: '🍳 厨房小技巧', content: '切洋葱不流泪：先放冰箱冷藏15分钟。煮鸡蛋易剥壳：水中加一勺盐。隔夜米饭更好炒：米饭冷藏后淀粉回生，粒粒分明不粘锅。' },
+    ],
+    psychology: [
+      { title: '🎯 蔡格尼克效应', content: '人们对未完成的任务记忆更深刻。这就是为什么你总是忘不掉那些没做完的事。利用这个效应：开始一项任务后暂停，下次更容易进入状态。' },
+      { title: '🪞 镜像效应', content: '人们会下意识模仿喜欢的人的动作和表情。约会时微微模仿对方的姿势和语速，可以增加好感度。但要注意自然，过度模仿会适得其反。' },
+      { title: '💪 21天养成习惯的真相', content: '21天法则源自整形医生Maxwell Maltz的观察，他发现患者需要约21天适应新面容。实际上习惯养成平均需要66天，简单习惯可能更快，复杂习惯则需要更久。' },
+    ],
+    food: [
+      { title: '🥑 超级食物牛油果', content: '牛油果富含单不饱和脂肪酸和维生素E，有助于降低坏胆固醇。每天半个牛油果即可满足需求。与番茄搭配食用，番茄红素吸收率提高4倍！' },
+      { title: '🍵 绿茶vs咖啡', content: '绿茶含L-茶氨酸，能让人"冷静清醒"；咖啡因则让人"兴奋清醒"。下午3点后建议改喝绿茶，避免影响夜间睡眠。绿茶每天3-4杯为最佳。' },
+    ],
+    finance: [
+      { title: '💰 复利的魔力', content: '每月定投1000元，年化收益8%，30年后将拥有约150万元（其中本金仅36万）。这就是"世界第八大奇迹"——复利的力量。越早开始越好！' },
+      { title: '📊 分散投资原则', content: '"不要把鸡蛋放在一个篮子里"。建议将资金分散到不同资产类别：股票、债券、货币基金、黄金等。配置比例根据年龄调整：100减去年龄=股票配置比例。' },
+    ],
+    tech: [
+      { title: '🤖 AI正在改变世界', content: '2026年AI已能通过律师资格考试、编写完整程序、创作音乐。但AI仍然缺乏真正的理解力和创造力。学会与AI协作是未来最重要的技能之一。' },
+      { title: '📱 5G/6G时代', content: '6G预计2030年商用，速度将是5G的100倍。届时全息通信、脑机接口将成为现实。科技发展速度远超我们想象，保持学习才能不被时代抛弃。' },
+    ],
+  };
+  return all[catKey] || [];
+}
+
+// 每日推荐（随机从不同分类中各取一条）
+function loadWikiDaily() {
+  var el = document.getElementById('wiki-daily');
+  if (!el) return;
+
+  // 随机选3个分类
+  var shuffled = WIKI_CATEGORIES.slice().sort(function() { return Math.random() - 0.5; }).slice(0, 3);
+  var items = [];
+  shuffled.forEach(function(cat) {
+    var presets = getPresetKnowledge(cat.key);
+    if (presets && presets.length) {
+      var pick = presets[Math.floor(Math.random() * presets.length)];
+      items.push('<div style="margin-bottom:10px;padding:10px;background:var(--bg);border-radius:10px;border-left:3px solid var(--purple);">' +
+        '<div style="font-weight:700;color:var(--purple-deep);margin-bottom:4px;">' + cat.icon + ' ' + pick.title + '</div>' +
+        '<div style="color:var(--text);">' + pick.content + '</div>' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">#' + cat.name + '</div>' +
+      '</div>');
+    }
+  });
+
+  el.innerHTML = items.join('') || '<div style="text-align:center;color:var(--text-muted);">暂无推荐</div>';
 }
 
 // ==================== Boot ====================
