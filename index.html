@@ -860,7 +860,6 @@ function loadState() {
   STATE.loveStart = LS.get('jj_loveStart') || '2023-01-01';
   STATE.bankStudy = LS.get('jj_bankStudy') || null;
   STATE.korean = LS.get('jj_korean') || null;
-  STATE.closet = LS.get('jj_closet') || [];
   STATE.dailyOutfit = LS.get('jj_dailyOutfit') || {};
   STATE.cpaStudy = LS.get('jj_cpaStudy') || null;
   STATE.navConfig = LS.get('jj_navConfig') || null;
@@ -876,7 +875,7 @@ function saveState(key) {
     work: 'jj_work', workNotes: 'jj_workNotes', funds: 'jj_funds',
     fundData: 'jj_fundData', habits: 'jj_habits', love: 'jj_love',
     loveRecords: 'jj_loveRecords', loveStart: 'jj_loveStart',
-    bankStudy: 'jj_bankStudy', korean: 'jj_korean', closet: 'jj_closet',
+    bankStudy: 'jj_bankStudy', korean: 'jj_korean',
     dailyOutfit: 'jj_dailyOutfit', cpaStudy: 'jj_cpaStudy',
     navConfig: 'jj_navConfig'
   };
@@ -988,14 +987,13 @@ var ALL_MODULES = [
   { key: 'love', label: '恋爱', icon: '💕', render: 'renderLove' },
   { key: 'bank', label: '银从', icon: '🏦', render: 'renderBank' },
   { key: 'korean', label: '韩语', icon: '🇰🇷', render: 'renderKorean' },
-  { key: 'closet', label: '衣橱', icon: '👗', render: 'renderCloset' },
   { key: 'cpa', label: 'CPA', icon: '📝', render: 'renderCPA' }
 ];
 
 function getNavConfig() {
   if (!STATE.navConfig) {
     STATE.navConfig = {
-      visible: ['home', 'water', 'money', 'sport', 'plan', 'work', 'fund', 'habit', 'love', 'bank', 'korean', 'closet', 'cpa'],
+      visible: ['home', 'water', 'money', 'sport', 'plan', 'work', 'fund', 'habit', 'love', 'bank', 'korean', 'cpa'],
       more: []
     };
     LS.set('jj_navConfig', STATE.navConfig);
@@ -3605,259 +3603,7 @@ function _koreanWeekPlanModal(day, plan, planKey, onDone) {
 }
 
 // ==================== Closet Module ====================
-function renderCloset(main) {
-  if (!STATE.closet) { STATE.closet = []; saveState('closet'); }
-  if (!STATE.dailyOutfit) { STATE.dailyOutfit = {}; saveState('dailyOutfit'); }
-  main.innerHTML = '';
-  var wrap = document.createElement('div');
-  wrap.style.cssText = 'display:flex;flex-direction:column;gap:var(--gap);';
-  main.appendChild(wrap);
-  _closetRenderHeader(wrap);
-  _closetRenderFilterAndAdd(wrap);
-  _closetRenderGrid(wrap);
-  _closetRenderOutfitSection(wrap);
-  _closetRenderOutfitHistory(wrap);
-}
 
-function _closetTypes() { return ['上衣', '裤装', '裙装', '鞋', '配饰']; }
-var _closetCurrentFilterVal = '全部';
-
-function _closetRenderHeader(wrap) {
-  var card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = '<div class="card-title">👗 我的衣橱</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">公主的专属衣橱 ✨</div>';
-  wrap.appendChild(card);
-}
-
-function _closetRenderFilterAndAdd(wrap) {
-  var card = document.createElement('div');
-  card.className = 'card';
-  var filterRow = document.createElement('div');
-  filterRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--gap);';
-  var allBtn = document.createElement('button');
-  allBtn.className = 'btn btn-sm btn-primary'; allBtn.textContent = '全部';
-  allBtn.onclick = function() { _closetCurrentFilterVal = '全部'; _closetUpdateFilter(filterRow); _closetRefreshGrid(); };
-  filterRow.appendChild(allBtn);
-  _closetTypes().forEach(function(t) {
-    var btn = document.createElement('button');
-    btn.className = 'btn btn-sm btn-outline'; btn.textContent = t;
-    btn.onclick = function() { _closetCurrentFilterVal = t; _closetUpdateFilter(filterRow); _closetRefreshGrid(); };
-    filterRow.appendChild(btn);
-  });
-  card.appendChild(filterRow);
-  var uploadBtn = document.createElement('button');
-  uploadBtn.className = 'btn btn-purple'; uploadBtn.textContent = '📷 添加衣物'; uploadBtn.style.width = '100%';
-  uploadBtn.onclick = function() { _closetAddModal(); };
-  card.appendChild(uploadBtn);
-  wrap.appendChild(card);
-}
-
-function _closetUpdateFilter(filterRow) {
-  filterRow.querySelectorAll('button').forEach(function(b) {
-    b.className = b.textContent === _closetCurrentFilterVal ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
-  });
-}
-
-function _closetRenderGrid(wrap) {
-  var card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = '<div class="card-title">🧥 衣物列表</div>';
-  var grid = document.createElement('div');
-  grid.id = 'closet-grid';
-  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:var(--gap-sm);';
-  card.appendChild(grid);
-  wrap.appendChild(card);
-  _closetRefreshGrid();
-}
-
-function _closetRefreshGrid() {
-  var grid = document.getElementById('closet-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  var items = STATE.closet;
-  if (_closetCurrentFilterVal !== '全部') items = items.filter(function(c) { return c.type === _closetCurrentFilterVal; });
-  if (items.length === 0) { grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);font-size:12px;text-align:center;padding:20px 0;">还没有衣物</div>'; return; }
-  items.forEach(function(item) {
-    var cell = document.createElement('div');
-    cell.style.cssText = 'background:var(--pink-light);border-radius:var(--radius);overflow:hidden;position:relative;';
-    cell.innerHTML = '<img src="' + item.img + '" style="width:100%;height:100px;object-fit:cover;display:block;" loading="lazy"><div style="padding:4px 6px;"><div style="font-size:10px;color:var(--purple);font-weight:bold;">' + esc(item.type) + '</div><div style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(item.name) + '</div></div>';
-    var delBtn = document.createElement('button');
-    delBtn.textContent = '×';
-    delBtn.style.cssText = 'position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(0,0,0,0.5);color:#fff;font-size:14px;cursor:pointer;display:none;line-height:1;padding:0;';
-    cell.appendChild(delBtn);
-    cell.onmouseenter = function() { delBtn.style.display = 'block'; };
-    cell.onmouseleave = function() { delBtn.style.display = 'none'; };
-    delBtn.onclick = function(e) {
-      e.stopPropagation();
-      STATE.closet = STATE.closet.filter(function(c) { return c.id !== item.id; });
-      saveState('closet'); toast('已删除'); _closetRefreshGrid();
-    };
-    grid.appendChild(cell);
-  });
-}
-
-function _closetAddModal() {
-  var overlay = _createModalOverlay();
-  var modal = _createModalBox('添加衣物');
-  modal.innerHTML += '<div style="font-size:13px;color:var(--text);margin-bottom:4px;">分类</div>';
-  var typeSelect = document.createElement('select');
-  typeSelect.style.cssText = _inputStyle();
-  _closetTypes().forEach(function(t) { typeSelect.innerHTML += '<option value="' + t + '">' + t + '</option>'; });
-  modal.appendChild(typeSelect);
-  modal.innerHTML += '<div style="font-size:13px;margin:8px 0 4px;">名称</div>';
-  var nameInput = document.createElement('input');
-  nameInput.placeholder = '如：白色T恤'; nameInput.style.cssText = _inputStyle();
-  modal.appendChild(nameInput);
-  var fileInput = document.createElement('input');
-  fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.style.cssText = 'font-size:12px;margin-top:8px;';
-  var preview = document.createElement('img');
-  preview.style.cssText = 'max-width:100%;max-height:150px;border-radius:var(--radius);display:none;margin-top:8px;';
-  var compressedData = '';
-  fileInput.onchange = function() {
-    var file = fileInput.files[0]; if (!file) return;
-    preview.style.display = 'block';
-    _closetCompressImage(file, function(dataUrl) { compressedData = dataUrl; preview.src = dataUrl; });
-  };
-  modal.appendChild(fileInput); modal.appendChild(preview);
-  var saveBtn = document.createElement('button');
-  saveBtn.className = 'btn btn-primary'; saveBtn.textContent = '保存'; saveBtn.style.marginTop = 'var(--gap)';
-  saveBtn.onclick = function() {
-    var name = nameInput.value.trim();
-    if (!name) { toast('请输入名称'); return; }
-    if (!compressedData) { toast('请选择照片'); return; }
-    try {
-      STATE.closet.push({ id: uid(), type: typeSelect.value, name: name, img: compressedData });
-      saveState('closet'); toast('添加成功 👗'); _closetRefreshGrid(); overlay.remove();
-    } catch(e) { toast('存储空间不足'); }
-  };
-  modal.appendChild(saveBtn);
-  overlay.appendChild(modal); document.body.appendChild(overlay);
-  nameInput.focus();
-}
-
-function _closetCompressImage(file, callback) {
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var img = new Image();
-    img.onload = function() {
-      var canvas = document.createElement('canvas');
-      var maxW = 200; var scale = maxW / img.width; if (scale > 1) scale = 1;
-      canvas.width = maxW; canvas.height = Math.round(img.height * scale);
-      var ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      var dataUrl = canvas.toDataURL('image/jpeg', 0.5);
-      var quality = 0.5;
-      while (dataUrl.length > 50000 && quality > 0.1) { quality -= 0.1; dataUrl = canvas.toDataURL('image/jpeg', quality); }
-      if (dataUrl.length > 50000) { canvas.width = 150; canvas.height = Math.round(img.height * (150 / img.width)); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); dataUrl = canvas.toDataURL('image/jpeg', 0.3); }
-      callback(dataUrl);
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function _closetRenderOutfitSection(wrap) {
-  var card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = '<div class="card-title">✨ 今日穿搭</div>';
-  var dateKey = today();
-  var showArea = document.createElement('div');
-  showArea.id = 'outfit-show-area';
-  showArea.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:var(--gap-sm);margin-bottom:var(--gap);';
-  card.appendChild(showArea);
-  _closetRefreshOutfitShow(showArea, dateKey);
-  var pickBtn = document.createElement('button');
-  pickBtn.className = 'btn btn-purple'; pickBtn.textContent = '👗 选择今日穿搭'; pickBtn.style.width = '100%';
-  pickBtn.onclick = function() { _closetPickOutfitModal(dateKey); };
-  card.appendChild(pickBtn);
-  wrap.appendChild(card);
-}
-
-function _closetRefreshOutfitShow(showArea, dateKey) {
-  if (!showArea) showArea = document.getElementById('outfit-show-area');
-  if (!showArea) return;
-  showArea.innerHTML = '';
-  var todayOutfit = STATE.dailyOutfit[dateKey] || [];
-  if (todayOutfit.length === 0) { showArea.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);font-size:12px;text-align:center;padding:8px 0;">还没有选择穿搭</div>'; return; }
-  todayOutfit.forEach(function(item) {
-    var cell = document.createElement('div');
-    cell.style.cssText = 'text-align:center;';
-    cell.innerHTML = '<img src="' + item.img + '" style="width:100%;height:80px;object-fit:cover;border-radius:var(--radius);"><div style="font-size:10px;color:var(--purple);font-weight:bold;">' + esc(item.type) + '</div><div style="font-size:10px;color:var(--text-muted);">' + esc(item.name) + '</div>';
-    showArea.appendChild(cell);
-  });
-}
-
-function _closetPickOutfitModal(dateKey) {
-  var overlay = _createModalOverlay();
-  var modal = _createModalBox('选择今日穿搭');
-  modal.style.maxHeight = '80vh'; modal.style.overflowY = 'auto';
-  var selected = {};
-  _closetTypes().forEach(function(type) {
-    var typeItems = STATE.closet.filter(function(c) { return c.type === type; });
-    if (typeItems.length === 0) return;
-    var label = document.createElement('div');
-    label.style.cssText = 'font-size:13px;color:var(--purple);font-weight:bold;margin-top:8px;';
-    label.textContent = type; modal.appendChild(label);
-    var row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;';
-    typeItems.forEach(function(item) {
-      var cell = document.createElement('div');
-      cell.style.cssText = 'flex-shrink:0;width:70px;cursor:pointer;border-radius:var(--radius);overflow:hidden;border:2px solid transparent;';
-      cell.innerHTML = '<img src="' + item.img + '" style="width:70px;height:70px;object-fit:cover;"><div style="font-size:9px;text-align:center;padding:2px;">' + esc(item.name) + '</div>';
-      cell.onclick = function() {
-        if (selected[type] && selected[type].id === item.id) { delete selected[type]; cell.style.border = '2px solid transparent'; }
-        else { row.querySelectorAll('div').forEach(function(d) { d.style.border = '2px solid transparent'; }); selected[type] = item; cell.style.border = '2px solid var(--pink)'; }
-      };
-      row.appendChild(cell);
-    });
-    modal.appendChild(row);
-  });
-  var saveBtn = document.createElement('button');
-  saveBtn.className = 'btn btn-primary'; saveBtn.textContent = '保存穿搭'; saveBtn.style.marginTop = 'var(--gap)';
-  saveBtn.onclick = function() {
-    var arr = Object.values(selected);
-    if (arr.length === 0) { toast('至少选一件'); return; }
-    STATE.dailyOutfit[dateKey] = arr;
-    saveState('dailyOutfit'); toast('穿搭已记录 ✨');
-    _closetRefreshOutfitShow(null, dateKey);
-    _closetRefreshOutfitHistory();
-    overlay.remove();
-  };
-  modal.appendChild(saveBtn);
-  overlay.appendChild(modal); document.body.appendChild(overlay);
-}
-
-function _closetRenderOutfitHistory(wrap) {
-  var card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = '<div class="card-title">📋 穿搭记录</div>';
-  var list = document.createElement('div');
-  list.id = 'outfit-history-list';
-  card.appendChild(list);
-  wrap.appendChild(card);
-  _closetRefreshOutfitHistory();
-}
-
-function _closetRefreshOutfitHistory() {
-  var list = document.getElementById('outfit-history-list');
-  if (!list) return;
-  list.innerHTML = '';
-  var keys = Object.keys(STATE.dailyOutfit).sort().reverse();
-  if (keys.length === 0) { list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:12px 0;">还没有记录</div>'; return; }
-  keys.slice(0, 15).forEach(function(date) {
-    var items = STATE.dailyOutfit[date];
-    var row = document.createElement('div');
-    row.style.cssText = 'border-bottom:1px solid rgba(255,182,217,0.3);padding:10px 0;';
-    row.innerHTML = '<div style="font-size:12px;color:var(--purple);font-weight:bold;margin-bottom:6px;">' + date + '</div>';
-    var thumbs = document.createElement('div');
-    thumbs.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
-    items.forEach(function(item) {
-      thumbs.innerHTML += '<img src="' + item.img + '" style="width:50px;height:50px;object-fit:cover;border-radius:var(--radius);" title="' + esc(item.type) + ': ' + esc(item.name) + '">';
-    });
-    row.appendChild(thumbs);
-    list.appendChild(row);
-  });
-}
 
 // ==================== Settings Module ====================
 function renderSettings() {
@@ -3876,7 +3622,7 @@ function renderSettings() {
     { name: '恋爱', count: STATE.loveRecords.length },
     { name: '银从', count: STATE.bankStudy ? (STATE.bankStudy.wrongBook.length + STATE.bankStudy.logs.length) : 0 },
     { name: '韩语', count: STATE.korean ? STATE.korean.logs.length : 0 },
-    { name: '衣橱', count: STATE.closet.length },
+    { name: '学习', count: STATE.study ? STATE.study.length : 0 },
   ];
 
   var statsHtml = stats.map(function(s) {
@@ -4248,7 +3994,7 @@ function saveAllState() {
     work: 'jj_work', workNotes: 'jj_workNotes', funds: 'jj_funds',
     fundData: 'jj_fundData', habits: 'jj_habits', love: 'jj_love',
     loveRecords: 'jj_loveRecords', loveStart: 'jj_loveStart',
-    bankStudy: 'jj_bankStudy', korean: 'jj_korean', closet: 'jj_closet',
+    bankStudy: 'jj_bankStudy', korean: 'jj_korean',
     dailyOutfit: 'jj_dailyOutfit', cpaStudy: 'jj_cpaStudy',
     navConfig: 'jj_navConfig'
   };
